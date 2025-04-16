@@ -35,6 +35,28 @@ async function runSimpleAgentExample() {
       }
     }
     
+    // 检查所有已注册的代理
+    try {
+      console.log('\n检查已注册的代理:');
+      // 如果有getAgents方法
+      if (typeof mastra.getAgents === 'function') {
+        const agents = mastra.getAgents();
+        console.log('代理列表:', agents.map(a => a.name || a.metadata?.name));
+      } else if (mastra.agents) {
+        // 如果有agents对象
+        console.log('代理列表:', Object.keys(mastra.agents));
+      } else if (typeof mastra.listAgents === 'function') {
+        // 如果有listAgents方法
+        const agents = mastra.listAgents();
+        console.log('代理列表:', agents);
+      } else {
+        // 尝试打印整个mastra对象来查看结构
+        console.log('Mastra对象结构:', JSON.stringify(mastra, null, 2).substring(0, 500) + '...');
+      }
+    } catch (e) {
+      console.log('获取代理列表失败:', e.message);
+    }
+    
     // 尝试获取默认代理
     try {
       const defaultAgent = mastra.getAgent('default');
@@ -44,11 +66,11 @@ async function runSimpleAgentExample() {
     }
     
     // 获取代理
-    const agent = mastra.getAgent('default.assistant-agent');
+    const agent = mastra.getAgent('assistant-agent');
     if (!agent) {
       throw new Error('无法找到assistant-agent');
     }
-    console.log('已找到代理: default.assistant-agent');
+    console.log('已找到代理: assistant-agent');
     
     // 聊天消息模板
     const messages = [
