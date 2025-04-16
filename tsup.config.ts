@@ -4,7 +4,8 @@ export default defineConfig({
   entry: ['src/index.ts'],
   format: ['esm', 'cjs'],
   clean: true,
-  experimentalDts: true,
+  experimentalDts: false,
+  dts: false,
   splitting: true,
   treeshake: {
     preset: 'smallest',
