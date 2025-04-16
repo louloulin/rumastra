@@ -14,8 +14,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
-// 从@mastra/runtimes模块导入API
-import * as runtime from '@mastra/runtimes';
+// 从kastra模块导入API
+import * as runtime from 'kastra';
 // 使用类型断言获取MastraPod类
 const { MastraPod } = runtime as any;
 

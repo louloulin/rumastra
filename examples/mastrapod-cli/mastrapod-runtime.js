@@ -1,9 +1,9 @@
 /**
  * MastraPod 运行时封装类
- * 使用@mastra/runtimes实际API替代本地模拟实现
+ * 使用kastra实际API替代本地模拟实现
  */
 
-const { MastraPod } = require('@mastra/runtimes');
+const { MastraPod } = require('kastra');
 const yaml = require('js-yaml');
 const fs = require('fs');
 const path = require('path');

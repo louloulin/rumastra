@@ -8,13 +8,13 @@ The Mastra CLI is installed automatically when you install the Mastra Runtimes p
 
 ```bash
 # Using npm
-npm install @mastra/runtimes
+npm install kastra
 
 # Using yarn
-yarn add @mastra/runtimes
+yarn add kastra
 
 # Using pnpm
-pnpm add @mastra/runtimes
+pnpm add kastra
 ```
 
 Once installed, you can access the CLI using the `mastra` command:
@@ -498,7 +498,7 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: npm install -g @mastra/runtimes
+      - run: npm install -g kastra
       - run: mastra validate -f ./resources/
       - run: mastra apply -f ./resources/
 ```

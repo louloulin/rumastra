@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@mastra/core": "latest",
-    "@mastra/runtimes": "latest"
+    "kastra": "latest"
   },
   "devDependencies": {
     "ts-node": "^10.9.1",

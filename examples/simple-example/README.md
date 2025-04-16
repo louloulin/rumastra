@@ -1,6 +1,6 @@
 # Mastra Runtimes 简化 API 示例
 
-这个示例演示了如何使用 `@mastra/runtimes` 包中的简化 API 来加载、解析和处理 Kubernetes 风格的 YAML 资源。
+这个示例演示了如何使用 `kastra` 包中的简化 API 来加载、解析和处理 Kubernetes 风格的 YAML 资源。
 
 ## 简化 API 特点
 
@@ -20,7 +20,7 @@ import {
   SimpleResourceManager, 
   loadResources, 
   loadAndRegister 
-} from '@mastra/runtimes';
+} from 'kastra';
 
 // 方法 1: 使用 SimpleResourceManager
 const manager = new SimpleResourceManager();
@@ -84,7 +84,7 @@ resources:
 
 1. 安装依赖：
 ```bash
-npm install @mastra/runtimes
+npm install kastra
 ```
 
 2. 运行示例：

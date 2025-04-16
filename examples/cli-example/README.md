@@ -29,7 +29,7 @@ cli-example/
 1. 安装CLI工具（如果尚未安装）
 
 ```bash
-npm install -g @mastra/runtimes
+npm install -g kastra
 ```
 
 2. 应用MastraPod配置

@@ -33,10 +33,10 @@ simple-pod/
 
 ### 安装依赖
 
-首先确保安装了 @mastra/runtimes 包:
+首先确保安装了 kastra 包:
 
 ```bash
-npm install @mastra/runtimes
+npm install kastra
 ```
 
 ### 验证配置
@@ -117,4 +117,4 @@ node test.js
 
 - 示例中使用的计算器工具仅作为演示使用，生产环境中应使用更安全的实现
 - 运行示例需要有效的 API 密钥
-- 所有导入均直接使用 @mastra/runtimes 包，无需关注源码路径 
+- 所有导入均直接使用 kastra 包，无需关注源码路径 

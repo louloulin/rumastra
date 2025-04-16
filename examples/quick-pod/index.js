@@ -8,7 +8,7 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import readline from 'readline';
-import { MastraPod, loadFile } from '@mastra/runtimes';
+import { MastraPod, loadFile } from 'kastra';
 
 // 获取当前文件目录
 const __filename = fileURLToPath(import.meta.url);

@@ -335,7 +335,7 @@ spec:
 Mastra Runtimes 支持直接运行 DSL 而无需手动解析，只需使用以下模式：
 
 ```typescript
-import { Mastra } from '@mastra/runtimes';
+import { Mastra } from 'kastra';
 
 // 创建 Mastra 实例
 const mastra = new Mastra();
@@ -383,7 +383,7 @@ Mastra Runtimes 提供了多种方法导入 YAML 配置，以满足不同场景�
 ### 5.1 基本导入方法
 
 ```typescript
-import { MastraPod } from '@mastra/runtimes';
+import { MastraPod } from 'kastra';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 
@@ -420,7 +420,7 @@ async function importYamlConfigs() {
 处理包含多个文档的 YAML 文件：
 
 ```typescript
-import { MastraPod } from '@mastra/runtimes';
+import { MastraPod } from 'kastra';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 
@@ -488,7 +488,7 @@ spec:
 导入配置时进行验证：
 
 ```typescript
-import { MastraPod, ResourceSchema } from '@mastra/runtimes';
+import { MastraPod, ResourceSchema } from 'kastra';
 import * as fs from 'fs';
 import * as yaml from 'js-yaml';
 import Ajv from 'ajv';
@@ -531,7 +531,7 @@ async function validateAndImport() {
 实现配置的动态加载和热更新：
 
 ```typescript
-import { MastraPod } from '@mastra/runtimes';
+import { MastraPod } from 'kastra';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as chokidar from 'chokidar';
@@ -683,7 +683,7 @@ async function main() {
 根据不同环境加载不同配置：
 
 ```typescript
-import { MastraPod } from '@mastra/runtimes';
+import { MastraPod } from 'kastra';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as yaml from 'js-yaml';
@@ -1043,7 +1043,7 @@ spec:
 ## 8. 运行上述示例
 
 ```typescript
-import { Mastra } from '@mastra/runtimes';
+import { Mastra } from 'kastra';
 import * as fs from 'fs';
 
 async function main() {
@@ -1138,7 +1138,7 @@ main().catch(console.error);
 ### 10.1 自定义控制器
 
 ```typescript
-import { AbstractController, EventBus, RuntimeResource } from '@mastra/runtimes';
+import { AbstractController, EventBus, RuntimeResource } from 'kastra';
 
 // 定义资源类型
 interface CustomResource extends RuntimeResource {

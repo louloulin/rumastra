@@ -2,7 +2,7 @@
  * MastraPod 快速演示
  * 
  * 这是一个独立的演示脚本，模拟 MastraPod 的核心概念
- * 不依赖于安装 @mastra/runtimes 包
+ * 不依赖于安装 kastra 包
  */
 
 import fs from 'fs';

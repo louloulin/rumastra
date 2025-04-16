@@ -2,7 +2,7 @@ const path = require('path');
 const { loadMastraFromFile } = require('../../../dist/index.cjs');
 
 /**
- * 简单代理示例，展示如何使用 @mastra/runtimes
+ * 简单代理示例，展示如何使用 kastra
  * 创建和运行一个拥有工具的智能代理
  */
 async function runSimpleAgentExample() {

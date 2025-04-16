@@ -2,7 +2,7 @@
 
 ## 1. 现状分析 ✅
 
-当前 @mastra/runtimes 提供了基于 YAML 的配置加载和验证、工具执行、代理构建和工作流编排功能。参考 Kubernetes 的声明式架构，我们可以进一步增强 Mastra 的运行时能力，使其更加模块化、可扩展和稳定。
+当前 kastra 提供了基于 YAML 的配置加载和验证、工具执行、代理构建和工作流编排功能。参考 Kubernetes 的声明式架构，我们可以进一步增强 Mastra 的运行时能力，使其更加模块化、可扩展和稳定。
 
 ## 2. 核心架构改造 ✅
 
@@ -48,7 +48,7 @@ class AgentController implements Controller<AgentResource> {
 ### 3.1 核心模块拆分 ✅
 
 ```
-@mastra/runtimes/
+kastra/
 ├── core/ - 核心运行时引擎
 │   ├── api/ - 声明式 API 定义
 │   ├── controllers/ - 资源控制器

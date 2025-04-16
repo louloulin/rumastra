@@ -1,6 +1,6 @@
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { CLIRuntimeManager } from '@mastra/runtimes';
+import { CLIRuntimeManager } from 'kastra';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);

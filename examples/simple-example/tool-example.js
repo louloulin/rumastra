@@ -4,7 +4,7 @@
  * 这个例子演示如何使用简化的 API 加载和使用工具资源
  */
 
-import { SimpleResourceManager } from '@mastra/runtimes';
+import { SimpleResourceManager } from 'kastra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 

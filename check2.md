@@ -1,6 +1,6 @@
-# @mastra/runtimes 实现状态报告
+# kastra 实现状态报告
 
-本文档提供了 @mastra/runtimes 模块与 runtimes.md 中概述的计划相比的实现状态分析。
+本文档提供了 kastra 模块与 runtimes.md 中概述的计划相比的实现状态分析。
 
 ## 1. 核心架构实现
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * 测试@mastra/runtimes包API
+ * 测试kastra包API
  */
 
-const { MastraPod } = require('@mastra/runtimes');
+const { MastraPod } = require('kastra');
 
 // 初始化
 async function main() {

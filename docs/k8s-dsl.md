@@ -76,8 +76,8 @@ K8s DSL解析器提供以下核心功能：
 将YAML文件或文本内容解析为资源对象：
 
 ```typescript
-import { K8sDSLParser } from '@mastra/runtimes';
-import { EventBus } from '@mastra/runtimes';
+import { K8sDSLParser } from 'kastra';
+import { EventBus } from 'kastra';
 
 const eventBus = new EventBus();
 const parser = new K8sDSLParser(eventBus);

@@ -4,7 +4,7 @@
  * 这个例子演示如何使用简化的 API 来验证各种资源
  */
 
-import { SimpleResourceManager, loadResources } from '@mastra/runtimes';
+import { SimpleResourceManager, loadResources } from 'kastra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';

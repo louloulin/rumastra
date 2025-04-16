@@ -73,7 +73,7 @@ async function runTests() {
   // 测试1: 验证NPM依赖是否安装
   console.log(`\n${styles.cyan}[测试1] 检查依赖${styles.reset}`);
   try {
-    const packageCheck = runCommand('npm list @mastra/runtimes --depth=0');
+    const packageCheck = runCommand('npm list kastra --depth=0');
     printTestResult('依赖检查', packageCheck.success);
     allTestsPassed = allTestsPassed && packageCheck.success;
   } catch (error) {

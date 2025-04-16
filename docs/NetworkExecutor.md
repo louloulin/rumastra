@@ -15,7 +15,7 @@
 ### 创建网络执行器
 
 ```typescript
-import { NetworkExecutor } from '@mastra/runtimes';
+import { NetworkExecutor } from 'kastra';
 
 // 创建网络执行器实例
 const executor = new NetworkExecutor(

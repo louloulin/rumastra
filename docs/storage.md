@@ -68,7 +68,7 @@ interface StateStore {
 ### 使用示例
 
 ```typescript
-import { InMemoryStateStore } from '@mastra/runtimes';
+import { InMemoryStateStore } from 'kastra';
 
 // 创建内存存储
 const store = new InMemoryStateStore();
@@ -114,7 +114,7 @@ subscription.unsubscribe();
 ### 使用示例
 
 ```typescript
-import { FileSystemStateStore } from '@mastra/runtimes';
+import { FileSystemStateStore } from 'kastra';
 import path from 'path';
 
 // 创建文件系统存储
@@ -269,7 +269,7 @@ subscription.unsubscribe();
 你可以实现自己的存储后端，只需实现 `StateStore` 接口：
 
 ```typescript
-import { StateStore, RuntimeResource } from '@mastra/runtimes';
+import { StateStore, RuntimeResource } from 'kastra';
 
 export class MyCustomStore implements StateStore {
   async getResource(kind: string, namespace: string, name: string): Promise<RuntimeResource | null> {
@@ -309,7 +309,7 @@ Mastra Runtime 支持以下存储后端：
 使用工厂函数可简化存储创建：
 
 ```typescript
-import { createStateStore } from '@mastra/runtimes';
+import { createStateStore } from 'kastra';
 
 // 创建内存存储
 const memoryStore = createStateStore({ type: 'memory' });

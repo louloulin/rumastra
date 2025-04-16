@@ -1,6 +1,6 @@
 /**
  * MastraPod 运行时模拟实现
- * 用于在缺少实际@mastra/runtimes包时提供模拟功能
+ * 用于在缺少实际kastra包时提供模拟功能
  */
 
 const EventEmitter = require('events');
