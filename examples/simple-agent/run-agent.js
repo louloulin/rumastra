@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * 简单代理示例，展示如何使用 kastra
+ * 简单代理示例，展示如何使用 rumastra
  * 创建和运行一个拥有工具的智能代理
  */
 async function runSimpleAgentExample() {

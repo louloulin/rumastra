@@ -7,7 +7,7 @@
 ### 配置加载
 
 ```typescript
-import { loadFromFile, loadFromString, loadFromConfig } from 'kastra';
+import { loadFromFile, loadFromString, loadFromConfig } from 'rumastra';
 
 // 从文件加载
 const runtime = await loadFromFile('./config.yaml');
@@ -32,7 +32,7 @@ const runtime = await loadFromConfig(configObject);
 RuntimeManager 是 Mastra Runtimes 的核心类，负责管理所有资源和控制器。
 
 ```typescript
-import { RuntimeManager } from 'kastra';
+import { RuntimeManager } from 'rumastra';
 
 // 创建实例
 const runtimeManager = new RuntimeManager();
@@ -58,7 +58,7 @@ const workflow = runtimeManager.getWorkflow('default.my-workflow');
 EventBus 实现了事件驱动架构的核心组件，用于组件间通信。
 
 ```typescript
-import { EventBus } from 'kastra';
+import { EventBus } from 'rumastra';
 
 // 创建事件总线
 const eventBus = new EventBus();
@@ -88,7 +88,7 @@ eventBus.clearAll();
 抽象控制器类，提供了基本的控制器实现。
 
 ```typescript
-import { AbstractController } from 'kastra';
+import { AbstractController } from 'rumastra';
 
 class MyController extends AbstractController<MyResource> {
   async getDesiredState(resource: MyResource): Promise<any> {
@@ -120,7 +120,7 @@ class MyController extends AbstractController<MyResource> {
 代理控制器，管理代理资源的生命周期。
 
 ```typescript
-import { AgentController } from 'kastra';
+import { AgentController } from 'rumastra';
 
 // 创建控制器
 const agentController = new AgentController(eventBus);
@@ -137,7 +137,7 @@ await agentController.reconcile(agentResource);
 工作流控制器，管理工作流资源的生命周期。
 
 ```typescript
-import { WorkflowController } from 'kastra';
+import { WorkflowController } from 'rumastra';
 
 // 创建控制器
 const workflowController = new WorkflowController(eventBus);
@@ -154,7 +154,7 @@ await workflowController.reconcile(workflowResource);
 网络控制器，管理网络资源的生命周期。
 
 ```typescript
-import { NetworkController } from 'kastra';
+import { NetworkController } from 'rumastra';
 
 // 创建控制器
 const networkController = new NetworkController(eventBus, stateStore);
@@ -173,7 +173,7 @@ await networkController.reconcile(networkResource);
 工作流执行器，负责执行工作流步骤。
 
 ```typescript
-import { WorkflowExecutor } from 'kastra';
+import { WorkflowExecutor } from 'rumastra';
 
 // 创建执行器
 const executor = new WorkflowExecutor(workflowResource, agentMap);
@@ -205,7 +205,7 @@ const history = executor.getHistory();
 网络执行器，负责执行网络生成。
 
 ```typescript
-import { NetworkExecutor } from 'kastra';
+import { NetworkExecutor } from 'rumastra';
 
 // 创建执行器
 const executor = new NetworkExecutor(networkResource, agentsMap, routerAgent);
@@ -247,7 +247,7 @@ const agents = executor.getAgents();
 网络状态类，用于管理网络执行的状态。
 
 ```typescript
-import { NetworkState } from 'kastra';
+import { NetworkState } from 'rumastra';
 
 // 创建状态
 const state = new NetworkState({ initialKey: 'initialValue' });
@@ -279,7 +279,7 @@ const stateObject = state.toObject();
 网络状态存储接口，用于持久化网络状态。
 
 ```typescript
-import { InMemoryNetworkStateStore, NetworkStateStore } from 'kastra';
+import { InMemoryNetworkStateStore, NetworkStateStore } from 'rumastra';
 
 // 创建内存存储
 const stateStore = new InMemoryNetworkStateStore();
@@ -430,7 +430,7 @@ import {
   createToolResource,
   createWorkflowResource,
   createNetworkResource
-} from 'kastra';
+} from 'rumastra';
 
 // 创建代理资源
 const agentResource = createAgentResource('my-agent', {

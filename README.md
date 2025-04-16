@@ -15,10 +15,10 @@ Mastra Runtimes 是一个模块化、声明式的 AI 应用运行时系统，提
 
 ```bash
 # 使用 npm
-npm install kastra
+npm install rumastra
 
 # 使用 pnpm
-pnpm add kastra
+pnpm add rumastra
 ```
 
 ## 架构概览
@@ -42,7 +42,7 @@ Mastra Runtimes 基于以下核心组件构建：
 ### 工作流示例
 
 ```typescript
-import { loadFromString } from 'kastra';
+import { loadFromString } from 'rumastra';
 
 // 创建工作流资源
 const workflowYaml = `
@@ -88,7 +88,7 @@ async function runWorkflow() {
 ### 智能体网络示例
 
 ```typescript
-import { loadFromString } from 'kastra';
+import { loadFromString } from 'rumastra';
 
 // 创建网络资源
 const networkYaml = `
@@ -135,7 +135,7 @@ async function runNetwork() {
 ## 全功能示例
 
 ```typescript
-import { loadFromFile, RuntimeManager } from 'kastra';
+import { loadFromFile, RuntimeManager } from 'rumastra';
 
 async function main() {
   // 从文件加载配置
@@ -313,7 +313,7 @@ resources:
 ### 示例代码
 
 ```javascript
-import { CLIRuntimeManager } from 'kastra';
+import { CLIRuntimeManager } from 'rumastra';
 
 async function runWithMastraPod() {
   // 创建运行时管理器
@@ -393,7 +393,7 @@ interface AppEvents {
 创建事件总线实例：
 
 ```typescript
-import { EventBus } from 'kastra';
+import { EventBus } from 'rumastra';
 
 const eventBus = new EventBus<AppEvents>();
 ```

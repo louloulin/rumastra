@@ -2,12 +2,12 @@
 
 ## 概述
 
-MastraPod API是kastra的高级接口，它提供了一种简单而强大的方式来加载、管理和执行基于YAML定义的Mastra资源，如代理、工具和工作流。这个API大大简化了与Mastra运行时的交互，让开发者可以专注于构建应用而不是处理底层细节。
+MastraPod API是rumastra的高级接口，它提供了一种简单而强大的方式来加载、管理和执行基于YAML定义的Mastra资源，如代理、工具和工作流。这个API大大简化了与Mastra运行时的交互，让开发者可以专注于构建应用而不是处理底层细节。
 
 ## 安装
 
 ```bash
-npm install kastra
+npm install rumastra
 ```
 
 ## 快速开始
@@ -15,7 +15,7 @@ npm install kastra
 ### 基础示例
 
 ```javascript
-import { loadFile, run } from 'kastra';
+import { loadFile, run } from 'rumastra';
 
 // 方法1：使用loadFile加载并执行
 const pod = await loadFile('./mastrapod.yaml');
@@ -34,7 +34,7 @@ console.log(response);
 ### 创建应用
 
 ```javascript
-import { createApp } from 'kastra';
+import { createApp } from 'rumastra';
 
 // 创建一个应用并加载多个资源文件
 const app = createApp();
@@ -237,7 +237,7 @@ interface RunOptions {
 ### 加载并运行工作流
 
 ```javascript
-import { loadFile } from 'kastra';
+import { loadFile } from 'rumastra';
 
 async function main() {
   // 加载MastraPod
@@ -264,7 +264,7 @@ main().catch(console.error);
 ### 事件监听
 
 ```javascript
-import { loadFile } from 'kastra';
+import { loadFile } from 'rumastra';
 
 async function main() {
   const pod = await loadFile('./pod.yaml');
@@ -289,7 +289,7 @@ main().catch(console.error);
 ### 创建应用并处理环境变量
 
 ```javascript
-import { createApp } from 'kastra';
+import { createApp } from 'rumastra';
 import dotenv from 'dotenv';
 
 // 加载环境变量

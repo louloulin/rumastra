@@ -123,7 +123,7 @@ spec:
 ### 加载 LLM 资源
 
 ```typescript
-import { RuntimeManager } from 'kastra';
+import { RuntimeManager } from 'rumastra';
 
 // 创建运行时管理器
 const runtimeManager = new RuntimeManager();
@@ -150,7 +150,7 @@ const llm = runtimeManager.getLLM('default.my-llm');
 ### 使用 YAML 转 LLM 功能
 
 ```typescript
-import { yamlToMastraLLM } from 'kastra';
+import { yamlToMastraLLM } from 'rumastra';
 
 const yamlContent = `
 apiVersion: mastra.ai/v1

@@ -8,7 +8,7 @@ import {
   SimpleResourceManager, 
   loadResources, 
   loadAndRegister 
-} from 'kastra';
+} from 'rumastra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { DataSourceController } from './datasource-controller.js';

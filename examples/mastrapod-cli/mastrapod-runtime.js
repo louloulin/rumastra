@@ -1,9 +1,9 @@
 /**
  * MastraPod 运行时封装类
- * 使用kastra实际API替代本地模拟实现
+ * 使用rumastra实际API替代本地模拟实现
  */
 
-const { MastraPod } = require('kastra');
+const { MastraPod } = require('rumastra');
 const yaml = require('js-yaml');
 const fs = require('fs');
 const path = require('path');

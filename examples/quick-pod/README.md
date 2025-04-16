@@ -58,11 +58,11 @@ pnpm start
 
 ```javascript
 // 方法1：使用 loadFile 加载
-import { loadFile } from 'kastra';
+import { loadFile } from 'rumastra';
 const pod = await loadFile('config.yaml', { env: process.env });
 
 // 方法2：直接使用 MastraPod 类
-import { MastraPod } from 'kastra';
+import { MastraPod } from 'rumastra';
 const pod = new MastraPod();
 await pod.addFile('config.yaml');
 ```

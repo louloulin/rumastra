@@ -64,7 +64,7 @@ import {
   WorkflowResourceSchema, 
   NetworkResourceSchema, 
   ToolResourceSchema 
-} from 'kastra';
+} from 'rumastra';
 
 export class DSLParser {
   /**
@@ -155,7 +155,7 @@ import {
   AgentResource, 
   WorkflowResource, 
   NetworkResource 
-} from 'kastra';
+} from 'rumastra';
 import { EventEmitter } from 'events';
 import { logger } from '../utils/logger';
 
@@ -856,7 +856,7 @@ spec:
 {
   "dependencies": {
     // 现有依赖
-    "kastra": "workspace:^",
+    "rumastra": "workspace:^",
     "js-yaml": "^4.1.0",
     "express": "^4.18.2"
   }
@@ -1085,7 +1085,7 @@ import {
   RuntimeResource, 
   MastraPodSchema, 
   resolveEnvVariables
-} from 'kastra';
+} from 'rumastra';
 
 export class DSLParser {
   private resourceCache = new Map<string, RuntimeResource>();

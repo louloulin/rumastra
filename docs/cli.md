@@ -4,14 +4,14 @@ Mastra Runtimes CLI是一个命令行工具，用于管理和执行基于DSL（�
 
 ## 安装
 
-CLI工具随`kastra`包一起安装。您可以通过以下方式全局安装：
+CLI工具随`rumastra`包一起安装。您可以通过以下方式全局安装：
 
 ```bash
-npm install -g kastra
+npm install -g rumastra
 # 或者
-pnpm add -g kastra
+pnpm add -g rumastra
 # 或者
-yarn global add kastra
+yarn global add rumastra
 ```
 
 安装后，您可以通过`mastra`命令访问CLI。

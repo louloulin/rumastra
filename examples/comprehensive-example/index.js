@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { CLIRuntimeManager } from 'kastra';
+import { CLIRuntimeManager } from 'rumastra';
 import fs from 'fs';
 import * as yaml from 'js-yaml';
 

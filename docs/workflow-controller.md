@@ -50,9 +50,9 @@ spec:
 ### 创建工作流控制器
 
 ```typescript
-import { EventBus } from 'kastra/core/eventbus';
-import { WorkflowController } from 'kastra/core/workflow/controller';
-import { ResourceScheduler } from 'kastra/core/scheduler/resource-scheduler';
+import { EventBus } from 'rumastra/core/eventbus';
+import { WorkflowController } from 'rumastra/core/workflow/controller';
+import { ResourceScheduler } from 'rumastra/core/scheduler/resource-scheduler';
 
 // 创建事件总线
 const eventBus = new EventBus();
@@ -71,7 +71,7 @@ const workflowController = new WorkflowController(eventBus, { scheduler });
 
 ```typescript
 // 创建工作流资源
-import { createWorkflowResource } from 'kastra/types';
+import { createWorkflowResource } from 'rumastra/types';
 
 const workflowResource = createWorkflowResource('my-workflow', {
   name: "示例工作流",

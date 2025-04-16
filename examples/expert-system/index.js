@@ -1,4 +1,4 @@
-import { loadFromFile, RuntimeManager } from 'kastra';
+import { loadFromFile, RuntimeManager } from 'rumastra';
 import { config } from 'dotenv';
 import path from 'path';
 import fs from 'fs';
@@ -9,7 +9,7 @@ config();
 
 /**
  * 客户支持专家系统示例
- * 演示如何使用 kastra 创建一个基于声明式配置的复杂AI系统
+ * 演示如何使用 rumastra 创建一个基于声明式配置的复杂AI系统
  */
 async function main() {
   console.log('🚀 启动客户支持专家系统');

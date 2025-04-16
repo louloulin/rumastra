@@ -7,7 +7,7 @@
     "demo": "node direct-demo.js"
   },
   "dependencies": {
-    "kastra": "file:../../mastra-runtimes-0.1.0.tgz",
+    "rumastra": "file:../../mastra-runtimes-0.1.0.tgz",
     "js-yaml": "^4.1.0"
   }
 } 

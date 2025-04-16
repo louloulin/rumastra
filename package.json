@@ -1,5 +1,5 @@
 {
-  "name": "kastra",
+  "name": "rumastra",
   "version": "0.1.0",
   "description": "Runtime environments and configuration support for Mastra agents and workflows",
   "type": "module",

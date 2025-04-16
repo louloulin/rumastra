@@ -116,7 +116,7 @@ class PluginSystem {
 ### 插件示例
 
 ```typescript
-import { Plugin, PluginContext } from 'kastra';
+import { Plugin, PluginContext } from 'rumastra';
 
 export class MyPlugin implements Plugin {
   id = 'com.example:my-plugin';
@@ -174,7 +174,7 @@ export class MyPlugin implements Plugin {
 要使用插件，需要首先创建 `PluginSystem` 实例，然后注册插件：
 
 ```typescript
-import { EventBus, PluginSystem } from 'kastra';
+import { EventBus, PluginSystem } from 'rumastra';
 import { MyPlugin } from './my-plugin';
 
 // 创建插件系统
@@ -284,7 +284,7 @@ const value = context.getConfig('configKey');
 以下是一个完整的日志插件示例：
 
 ```typescript
-import { Plugin, PluginContext } from 'kastra';
+import { Plugin, PluginContext } from 'rumastra';
 
 export class LoggerPlugin implements Plugin {
   id = 'mastra:logger';

@@ -6,7 +6,7 @@
  */
 
 import { join } from 'path';
-import { MastraPod, loadFile, run } from 'kastra';
+import { MastraPod, loadFile, run } from 'rumastra';
 
 // Path to the YAML file
 const yamlPath = join(process.cwd(), 'mastrapod.yaml');

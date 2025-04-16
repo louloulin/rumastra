@@ -10,7 +10,7 @@
     "dev": "npm run build && node dist/index.js"
   },
   "dependencies": {
-    "kastra": "file:../../mastra-runtimes-0.1.0.tgz"
+    "rumastra": "file:../../mastra-runtimes-0.1.0.tgz"
   },
   "devDependencies": {
     "typescript": "^5.2.2"

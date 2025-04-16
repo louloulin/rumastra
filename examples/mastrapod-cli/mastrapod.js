@@ -3,7 +3,7 @@
 /**
  * MastraPod CLI - 命令行工具
  * 支持类似 kubectl 的方式管理和执行 Mastra 资源
- * 使用真实的 kastra 运行时
+ * 使用真实的 rumastra 运行时
  */
 
 const { program } = require('commander');
