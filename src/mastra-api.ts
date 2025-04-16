@@ -4,13 +4,17 @@ import { join, resolve, dirname } from 'path';
 import { glob } from 'glob';
 import { EventEmitter } from 'events';
 import { Agent } from '@mastra/core';
+import { v4 as uuidv4 } from 'uuid';
 
-import { EventBus } from './core/eventbus';
-import { RuntimeManager } from './core/runtime-manager';
-import { InMemoryNetworkStateStore } from './core/network/store';
-import { DSLParser } from './core/dsl-parser';
-import { WorkflowExecutor } from './core/workflow/executor';
-import { NetworkExecutor } from './core/network/executor';
+import { 
+  resolveEnvVariables, 
+  handleAsyncError, 
+  logError,
+  ExecutionError,
+  ValidationError,
+  NotFoundError
+} from './utils';
+import { SimpleResourceManager } from './simple-api';
 import { 
   RuntimeResource, 
   WorkflowResource, 
@@ -18,52 +22,57 @@ import {
   ToolResource,
   NetworkResource,
   LLMResource,
-  MastraPodSchema
+  MastraPod as MastraPodType,
+  MastraPodOptions,
+  MastraPodLoadOptions,
+  AgentRunOptions,
+  WorkflowRunOptions,
+  ToolCallOptions,
+  AgentResponse,
+  WorkflowResponse,
+  ToolResponse,
+  RunOptions
 } from './types';
-import { SimpleResourceManager } from './simple-api';
 
 /**
- * MastraPod class - High-level API entry point
- * for simplified loading and running of Mastra YAML DSL
+ * MastraPod类 - 高级API入口点，用于简化Mastra YAML DSL的加载和运行
  */
 export class MastraPod extends EventEmitter {
   private resourceManager: SimpleResourceManager;
   private resources: Map<string, RuntimeResource> = new Map();
-  private workflowExecutors: Map<string, WorkflowExecutor> = new Map();
-  private networkExecutors: Map<string, NetworkExecutor> = new Map();
   private executions: Map<string, any> = new Map();
   private metadata: Record<string, any> = {};
   private env: Record<string, string> = {};
   
   /**
-   * Create a MastraPod instance
-   * @param options Configuration options
+   * 创建MastraPod实例
+   * @param options 配置选项
    */
   constructor(options: MastraPodOptions = {}) {
     super();
     this.resourceManager = new SimpleResourceManager();
     
-    // Set environment variables
+    // 设置环境变量
     this.env = options.env || process.env;
     
-    // Listen for runtime events
+    // 监听运行时事件
     this.setupEventListeners();
   }
   
   /**
-   * Set up event listeners
+   * 设置事件监听器
    */
   private setupEventListeners() {
     const runtimeManager = this.resourceManager.runtimeManager;
     
-    // Listen for resource added events
+    // 监听资源添加事件
     runtimeManager.on('resource:added', (resource: RuntimeResource) => {
       const key = this.getResourceKey(resource);
       this.resources.set(key, resource);
       this.emit('resource:added', { resource });
     });
     
-    // Listen for workflow events
+    // 监听工作流事件
     runtimeManager.on('workflow:step:started', (data: any) => {
       this.emit('workflow:step:started', data);
     });
@@ -76,7 +85,7 @@ export class MastraPod extends EventEmitter {
       this.emit('workflow:completed', data);
     });
     
-    // Listen for agent events
+    // 监听代理事件
     runtimeManager.on('agent:executing', (data: any) => {
       this.emit('agent:executing', data);
     });
@@ -84,10 +93,15 @@ export class MastraPod extends EventEmitter {
     runtimeManager.on('agent:executed', (data: any) => {
       this.emit('agent:executed', data);
     });
+
+    // 确保清理资源
+    process.on('beforeExit', () => {
+      this.cleanup();
+    });
   }
   
   /**
-   * Get resource unique key
+   * 获取资源唯一键
    */
   private getResourceKey(resource: RuntimeResource): string {
     const namespace = resource.metadata?.namespace || 'default';
@@ -95,9 +109,9 @@ export class MastraPod extends EventEmitter {
   }
   
   /**
-   * Load MastraPod from YAML file
-   * @param filePath YAML file path
-   * @param options Loading options
+   * 从YAML文件加载MastraPod
+   * @param filePath YAML文件路径
+   * @param options 加载选项
    */
   static async loadFile(filePath: string, options: MastraPodLoadOptions = {}): Promise<MastraPod> {
     const pod = new MastraPod({
@@ -109,9 +123,9 @@ export class MastraPod extends EventEmitter {
   }
   
   /**
-   * Load MastraPod from YAML content
-   * @param content YAML content
-   * @param options Loading options
+   * 从YAML内容加载MastraPod
+   * @param content YAML内容
+   * @param options 加载选项
    */
   static async loadContent(content: string, options: MastraPodLoadOptions = {}): Promise<MastraPod> {
     const pod = new MastraPod({
@@ -123,22 +137,22 @@ export class MastraPod extends EventEmitter {
   }
   
   /**
-   * Create a new application instance
+   * 创建新的应用程序实例
    */
   static createApp(options: MastraPodOptions = {}): MastraPod {
     return new MastraPod(options);
   }
   
   /**
-   * Create MastraPod with default configuration
-   * @param defaults Default configuration
+   * 使用默认配置创建MastraPod
+   * @param defaults 默认配置
    */
   static withDefaults(defaults: Record<string, any>): MastraPod {
     const pod = new MastraPod({ 
       env: defaults.env,
     });
     
-    // Set default metadata
+    // 设置默认元数据
     if (defaults.metadata) {
       pod.metadata = { ...defaults.metadata };
     }
@@ -147,129 +161,118 @@ export class MastraPod extends EventEmitter {
   }
   
   /**
-   * Add YAML file to MastraPod
-   * @param filePath File path
+   * 添加YAML文件到MastraPod
+   * @param filePath 文件路径
    */
   async addFile(filePath: string): Promise<MastraPod> {
     try {
-      const content = await readFile(filePath, 'utf-8');
-      return this.addContent(content);
-    } catch (error: any) {
-      throw new Error(`Failed to load file ${filePath}: ${error.message}`);
+      const [content, readError] = await handleAsyncError(readFile(filePath, 'utf-8'));
+      
+      if (readError) {
+        throw new ValidationError(`Failed to read file ${filePath}: ${readError.message}`, { 
+          filePath, 
+          error: readError 
+        });
+      }
+      
+      return this.addContent(content as string);
+    } catch (error) {
+      logError(error, `MastraPod.addFile(${filePath})`);
+      throw error instanceof Error ? error : new Error(`Failed to load file ${filePath}: ${String(error)}`);
     }
   }
   
   /**
-   * Add YAML content to MastraPod
-   * @param content YAML content
+   * 添加YAML内容到MastraPod
+   * @param content YAML内容
    */
   async addContent(content: string): Promise<MastraPod> {
     try {
       const resources = this.parseYAML(content);
       await this.registerResources(resources);
       return this;
-    } catch (error: any) {
-      throw new Error(`Failed to parse YAML content: ${error.message}`);
+    } catch (error) {
+      logError(error, 'MastraPod.addContent');
+      throw error instanceof Error ? error : new Error(`Failed to parse YAML content: ${String(error)}`);
     }
   }
   
   /**
-   * Scan directory for all YAML files
-   * @param dirPath Directory path
-   * @param pattern Optional glob pattern, defaults to standard YAML extensions
+   * 扫描目录中的所有YAML文件
+   * @param dirPath 目录路径
+   * @param pattern 可选的glob模式，默认为标准YAML扩展名
    */
   async scanDirectory(dirPath: string, pattern?: string): Promise<MastraPod> {
     const defaultPattern = "**/*.{yaml,yml}";
     const fullPattern = join(dirPath, pattern || defaultPattern);
-    const files = await glob(fullPattern);
     
-    for (const file of files) {
-      await this.addFile(file);
+    try {
+      const files = await glob(fullPattern);
+      
+      for (const file of files) {
+        try {
+          await this.addFile(file);
+        } catch (error) {
+          console.warn(`Error loading file ${file}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+      
+      return this;
+    } catch (error) {
+      logError(error, `MastraPod.scanDirectory(${dirPath})`);
+      throw new Error(`Failed to scan directory ${dirPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
-    
-    return this;
   }
   
   /**
-   * Parse YAML content
-   * @param content YAML content
+   * 解析YAML内容
+   * @param content YAML内容
    */
   parseYAML(content: string): RuntimeResource[] {
     try {
-      // Try to parse as a single document
-      const doc = load(content) as any;
-      let resources: RuntimeResource[] = [];
+      const resources: RuntimeResource[] = [];
       
-      // If it's a MastraPod, extract metadata and resources
-      if (doc && doc.kind === 'MastraPod') {
-        // Save metadata
-        if (doc.metadata) {
-          this.metadata = { ...this.metadata, ...doc.metadata };
-        }
+      // 处理多文档YAML
+      try {
+        const docs = loadAll(content);
         
-        // Process global provider config
-        if (doc.providers) {
-          this.processProviders(doc.providers);
+        for (const doc of docs) {
+          if (doc && typeof doc === 'object' && 'kind' in doc) {
+            resources.push(doc as RuntimeResource);
+          }
         }
+      } catch (error) {
+        // 如果多文档解析失败，尝试作为单个文档解析
+        const doc = load(content) as unknown;
         
-        // Process memory config
-        if (doc.memory) {
-          this.processMemoryConfig(doc.memory);
+        if (doc && typeof doc === 'object') {
+          if ('kind' in doc) {
+            // 单个资源
+            resources.push(doc as RuntimeResource);
+          } else if (Array.isArray(doc)) {
+            // 资源数组
+            for (const item of doc) {
+              if (item && typeof item === 'object' && 'kind' in item) {
+                resources.push(item as RuntimeResource);
+              }
+            }
+          }
         }
-        
-        // Return resource list
-        resources = Array.isArray(doc.resources) 
-          ? doc.resources.map(this.fixResourceMetadata.bind(this))
-          : [];
-      } else {
-        // Parse as multi-document YAML
-        const docs = loadAll(content) as any[];
-        resources = docs
-          .filter(Boolean)
-          .map(this.fixResourceMetadata.bind(this));
       }
       
-      // Store resources in the internal map for quick access
-      resources.forEach(resource => {
-        if (resource && resource.kind && resource.metadata?.name) {
-          const key = this.getResourceKey(resource);
-          this.resources.set(key, resource);
-        }
-      });
+      // 处理环境变量
+      const processedResources = resources.map(resource => this.resolveEnvVariables(resource));
       
-      return resources;
-    } catch (error: any) {
-      throw new Error(`Failed to parse YAML: ${error.message}`);
+      // 添加必要的元数据
+      return processedResources.map(resource => this.fixResourceMetadata(resource));
+    } catch (error) {
+      throw new ValidationError(`Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`, { error });
     }
   }
   
   /**
-   * Process provider configuration
-   */
-  private processProviders(providers: Record<string, any>): void {
-    // Inject provider config into runtime manager
-    const runtimeManager = this.resourceManager.runtimeManager;
-    
-    for (const [provider, config] of Object.entries(providers)) {
-      // Process environment variable references
-      const resolvedConfig = this.resolveEnvVariables(config);
-      runtimeManager.setProviderConfig(provider, resolvedConfig);
-    }
-  }
-  
-  /**
-   * Process memory configuration
-   */
-  private processMemoryConfig(config: Record<string, any>): void {
-    // Inject memory config into runtime manager
-    const runtimeManager = this.resourceManager.runtimeManager;
-    const resolvedConfig = this.resolveEnvVariables(config);
-    runtimeManager.setMemoryConfig(resolvedConfig);
-  }
-  
-  /**
-   * Resolve environment variable references
-   * @param obj Configuration object
+   * 处理环境变量
+   * @param obj 需要处理环境变量的对象
    */
   private resolveEnvVariables(obj: any): any {
     if (typeof obj === 'string') {
@@ -283,8 +286,10 @@ export class MastraPod extends EventEmitter {
     if (obj && typeof obj === 'object') {
       const result: Record<string, any> = {};
       
-      for (const [key, value] of Object.entries(obj)) {
-        result[key] = this.resolveEnvVariables(value);
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          result[key] = this.resolveEnvVariables(obj[key]);
+        }
       }
       
       return result;
@@ -294,66 +299,55 @@ export class MastraPod extends EventEmitter {
   }
   
   /**
-   * Resolve environment variable string
-   * @param str String
+   * 解析字符串中的环境变量
+   * @param str 包含环境变量的字符串
    */
   private resolveEnvString(str: string): string {
-    // Match ${env.VAR_NAME} pattern
-    return str.replace(/\${env\.([^}]+)}/g, (match, varName) => {
-      return this.env[varName] || '';
+    return str.replace(/\${([^}]+)}/g, (match, envVarName) => {
+      const envValue = this.env[envVarName];
+      return envValue !== undefined ? envValue : match;
     });
   }
   
   /**
-   * Fix resource metadata
-   * @param resource Resource object
+   * 修复资源元数据
+   * @param resource 需要修复的资源
    */
   private fixResourceMetadata(resource: RuntimeResource): RuntimeResource {
-    if (!resource) return resource;
-    
-    // Ensure metadata object exists
-    if (!resource.metadata || typeof resource.metadata !== 'object') {
-      resource.metadata = {
-        name: `auto-${resource.kind?.toLowerCase() || 'unknown'}-${Date.now()}`,
-        namespace: 'default'
-      };
-      return resource;
+    if (!resource.metadata) {
+      resource.metadata = { name: `resource-${Date.now()}` };
     }
     
-    // Ensure name exists
-    if (!resource.metadata.name) {
-      resource.metadata.name = `auto-${resource.kind?.toLowerCase() || 'unknown'}-${Date.now()}`;
-    }
-    
-    // Ensure namespace exists
     if (!resource.metadata.namespace) {
       resource.metadata.namespace = 'default';
+    }
+    
+    if (!resource.apiVersion) {
+      resource.apiVersion = 'mastra.ai/v1';
     }
     
     return resource;
   }
   
   /**
-   * Register resources
-   * @param resources Resource array
+   * 注册资源
+   * @param resources 资源列表
    */
   async registerResources(resources: RuntimeResource[]): Promise<void> {
-    const runtimeManager = this.resourceManager.runtimeManager;
-    
     for (const resource of resources) {
       try {
-        await runtimeManager.addResource(resource);
-      } catch (error: any) {
-        console.warn(`Failed to register resource ${resource.kind}/${resource.metadata?.name}: ${error.message}`);
+        await this.resourceManager.addResource(resource);
+      } catch (error) {
+        console.warn(`Failed to register resource ${resource.kind}/${resource.metadata?.name}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
   }
   
   /**
-   * Run specified agent
-   * @param agentName Agent name
-   * @param input Input content
-   * @param options Execution options
+   * 运行代理
+   * @param agentName 代理名称
+   * @param input 输入内容
+   * @param options 运行选项
    */
   async runAgent(
     agentName: string, 
@@ -361,82 +355,62 @@ export class MastraPod extends EventEmitter {
     options: AgentRunOptions = {}
   ): Promise<AgentResponse> {
     const namespace = options.namespace || 'default';
-    const runtimeManager = this.resourceManager.runtimeManager;
+    const executionId = options.executionId || `agent-${uuidv4()}`;
     
     try {
-      // Get agent resource
-      const agentResource = this.getResource('Agent', agentName, namespace);
-      if (!agentResource) {
-        throw new Error(`Agent '${agentName}' not found in namespace '${namespace}'`);
-      }
+      // 获取代理实例
+      const agent = this.getAgent(agentName, namespace);
       
-      // Create execution ID
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      
-      // Form the agent ID and get agent instance
-      const agentId = `${namespace}.${agentName}`;
-      const agent = runtimeManager.getAgent(agentId);
       if (!agent) {
-        throw new Error(`Failed to initialize agent '${agentName}'`);
+        throw new NotFoundError('Agent', `${namespace}/${agentName}`);
       }
       
-      // Prepare input
-      const agentInput = typeof input === 'string' ? { message: input } : input;
+      // 格式化输入
+      const formattedInput = typeof input === 'string' 
+        ? { input } 
+        : input;
+        
+      // 执行代理
+      console.log(`Running agent: ${agentName} (${executionId})`);
+      const result = await agent.execute(formattedInput);
       
-      // Execute agent using the generate method which is standard in our implementation
-      // Pass the message as the main input, with additional parameters as options
-      const result = await agent.generate(
-        agentInput.message || '', 
-        { ...agentInput }
-      );
-      
-      // Store execution result
-      this.executions.set(executionId, {
-        type: 'agent',
-        agentName,
-        namespace,
-        input: agentInput,
-        result,
-        timestamp: new Date(),
-        status: 'completed'
-      });
-      
-      // Return response
-      return {
+      // 保存结果
+      const response: AgentResponse = {
         executionId,
         result,
         agent: agentName,
         status: 'completed'
       };
-    } catch (error: any) {
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
-      // Store error
-      this.executions.set(executionId, {
-        type: 'agent',
-        agentName,
-        namespace,
-        input,
-        error: error.message,
-        timestamp: new Date(),
-        status: 'failed'
-      });
+      this.executions.set(executionId, response);
+      this.emit('agent:completed', { agentName, executionId, result });
       
-      // Return error response
-      return {
+      return response;
+    } catch (error) {
+      // 处理错误
+      logError(error, `MastraPod.runAgent(${namespace}/${agentName})`);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      const response: AgentResponse = {
         executionId,
-        error: error.message,
+        error: errorMessage,
         agent: agentName,
         status: 'failed'
       };
+      
+      this.executions.set(executionId, response);
+      this.emit('agent:failed', { agentName, executionId, error });
+      
+      return response;
     }
   }
   
   /**
-   * Run specified workflow
-   * @param workflowName Workflow name
-   * @param input Input content
-   * @param options Execution options
+   * 运行工作流
+   * @param workflowName 工作流名称
+   * @param input 输入内容
+   * @param options 运行选项
    */
   async runWorkflow(
     workflowName: string, 
@@ -444,128 +418,87 @@ export class MastraPod extends EventEmitter {
     options: WorkflowRunOptions = {}
   ): Promise<WorkflowResponse> {
     const namespace = options.namespace || 'default';
-    const runtimeManager = this.resourceManager.runtimeManager;
+    const executionId = options.executionId || `workflow-${uuidv4()}`;
     
     try {
-      // Get workflow resource
-      const workflowResource = this.getResource('Workflow', workflowName, namespace);
-      if (!workflowResource) {
-        throw new Error(`Workflow '${workflowName}' not found in namespace '${namespace}'`);
+      // 获取工作流
+      const workflow = this.resourceManager.getWorkflow(workflowName, namespace);
+      
+      if (!workflow) {
+        throw new NotFoundError('Workflow', `${namespace}/${workflowName}`);
       }
       
-      // Create execution ID
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      // 获取工作流执行器
+      const workflowModule = await this.resourceManager.getWorkflowController(workflow);
       
-      // Get workflow executor
-      let executor = this.workflowExecutors.get(`${namespace}.${workflowName}`);
-      
-      if (!executor) {
-        // Create new executor
-        const agents = this.getAgentsForWorkflow(workflowResource as WorkflowResource);
-        executor = new WorkflowExecutor(workflowResource as WorkflowResource, agents);
-        this.workflowExecutors.set(`${namespace}.${workflowName}`, executor);
+      if (!workflowModule) {
+        throw new ExecutionError(`Failed to create workflow controller for ${workflowName}`);
       }
       
-      // Set step completion callback
-      const stepCompletedCallback = (stepId: string, input: any, output: any) => {
-        this.emit('workflow:step:completed', {
-          executionId,
-          workflowName,
-          stepId,
-          input,
-          output
+      // 设置步骤回调
+      const stepResults: Record<string, any> = {};
+      
+      workflowModule.on('step:completed', (data: any) => {
+        const { stepId, output } = data;
+        stepResults[stepId] = output;
+        this.emit('workflow:step:completed', { 
+          workflowName, 
+          executionId, 
+          stepId, 
+          output 
         });
-      };
-      
-      // Execute workflow using the correct option format
-      const result = await executor.execute({
-        input,
-        onStepExecute: stepCompletedCallback,
-        onComplete: (result) => {
-          this.emit('workflow:completed', {
-            executionId,
-            workflowName,
-            result
-          });
-        },
-        onError: (error) => {
-          this.emit('workflow:error', {
-            executionId,
-            workflowName,
-            error
-          });
-        }
       });
       
-      // Store execution result
-      this.executions.set(executionId, {
-        type: 'workflow',
-        workflowName,
-        namespace,
-        input,
+      // 执行工作流
+      console.log(`Running workflow: ${workflowName} (${executionId})`);
+      const result = await workflowModule.execute(input);
+      
+      // 保存结果
+      const response: WorkflowResponse = {
+        executionId,
         result,
-        timestamp: new Date(),
+        workflow: workflowName,
         status: 'completed'
-      });
-      
-      // Return response
-      return {
-        executionId,
-        result: result.output,
-        workflow: workflowName,
-        status: result.status === 'completed' ? 'completed' : 'failed'
       };
-    } catch (error: any) {
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
-      // Store error
-      this.executions.set(executionId, {
-        type: 'workflow',
-        workflowName,
-        namespace,
-        input,
-        error: error.message,
-        timestamp: new Date(),
-        status: 'failed'
+      this.executions.set(executionId, response);
+      this.emit('workflow:completed', { 
+        workflowName, 
+        executionId, 
+        result,
+        steps: stepResults
       });
       
-      // Return error response
-      return {
+      return response;
+    } catch (error) {
+      // 处理错误
+      logError(error, `MastraPod.runWorkflow(${namespace}/${workflowName})`);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      const response: WorkflowResponse = {
         executionId,
-        error: error.message,
+        error: errorMessage,
         workflow: workflowName,
         status: 'failed'
       };
+      
+      this.executions.set(executionId, response);
+      this.emit('workflow:failed', { 
+        workflowName, 
+        executionId, 
+        error: errorMessage 
+      });
+      
+      return response;
     }
   }
   
   /**
-   * Get agents used by workflow
-   */
-  private getAgentsForWorkflow(workflow: WorkflowResource): Map<string, Agent> {
-    const result = new Map<string, Agent>();
-    const runtimeManager = this.resourceManager.runtimeManager;
-    const steps = workflow.spec?.steps || [];
-    
-    for (const step of steps) {
-      if (step.agent && !result.has(step.agent)) {
-        // Form the correct agent ID
-        const agentId = step.agent;
-        const agent = runtimeManager.getAgent(agentId);
-        if (agent) {
-          result.set(step.agent, agent);
-        }
-      }
-    }
-    
-    return result;
-  }
-  
-  /**
-   * Call tool
-   * @param toolName Tool name
-   * @param params Parameters
-   * @param options Options
+   * 调用工具
+   * @param toolName 工具名称
+   * @param params 参数
+   * @param options 调用选项
    */
   async callTool(
     toolName: string,
@@ -573,383 +506,227 @@ export class MastraPod extends EventEmitter {
     options: ToolCallOptions = {}
   ): Promise<ToolResponse> {
     const namespace = options.namespace || 'default';
-    const runtimeManager = this.resourceManager.runtimeManager;
+    const executionId = options.executionId || `tool-${uuidv4()}`;
     
     try {
-      // Create execution ID
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      // 获取工具
+      const tool = await this.resourceManager.getTool(toolName, namespace);
       
-      // Since there's no direct getToolFunction, we need to find an alternative
-      // One option is to use an agent that has the tool
-      // Or check if the tool is available in the resource list
-      const toolResource = this.getResource('Tool', toolName, namespace);
-      if (!toolResource) {
-        throw new Error(`Tool '${toolName}' not found in namespace '${namespace}'`);
+      if (!tool) {
+        throw new NotFoundError('Tool', `${namespace}/${toolName}`);
       }
       
-      // For now, we'll implement a simple mock execution
-      // In a real implementation, we would need to access the tool properly
-      const result = {
-        success: true,
-        output: `Executed tool ${toolName} with parameters: ${JSON.stringify(params)}`,
-        ...params  // Return the params as part of the result for demo purposes
-      };
+      if (!tool.execute || typeof tool.execute !== 'function') {
+        throw new ExecutionError(`Tool ${toolName} does not have a valid execute function`);
+      }
       
-      // Store execution result
-      this.executions.set(executionId, {
-        type: 'tool',
-        toolName,
-        namespace,
-        params,
-        result,
-        timestamp: new Date(),
-        status: 'completed'
-      });
+      // 执行工具
+      console.log(`Calling tool: ${toolName} (${executionId})`);
+      const result = await tool.execute(params);
       
-      // Return response
-      return {
+      // 保存结果
+      const response: ToolResponse = {
         executionId,
         result,
         tool: toolName,
         status: 'completed'
       };
-    } catch (error: any) {
-      const executionId = options.executionId || `exec-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
       
-      // Store error
-      this.executions.set(executionId, {
-        type: 'tool',
-        toolName,
-        namespace,
-        params,
-        error: error.message,
-        timestamp: new Date(),
-        status: 'failed'
+      this.executions.set(executionId, response);
+      this.emit('tool:completed', { 
+        toolName, 
+        executionId, 
+        params, 
+        result 
       });
       
-      // Return error response
-      return {
+      return response;
+    } catch (error) {
+      // 处理错误
+      logError(error, `MastraPod.callTool(${namespace}/${toolName})`);
+      
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      const response: ToolResponse = {
         executionId,
-        error: error.message,
+        error: errorMessage,
         tool: toolName,
         status: 'failed'
       };
+      
+      this.executions.set(executionId, response);
+      this.emit('tool:failed', { 
+        toolName, 
+        executionId, 
+        params, 
+        error: errorMessage 
+      });
+      
+      return response;
     }
   }
   
   /**
-   * Get specified execution result
-   * @param executionId Execution ID
+   * 获取执行结果
+   * @param executionId 执行ID
    */
   getResult(executionId: string): any {
-    const execution = this.executions.get(executionId);
-    return execution || null;
+    return this.executions.get(executionId);
   }
   
   /**
-   * Get resource
-   * @param kind Resource type
-   * @param name Resource name
-   * @param namespace Namespace
+   * 获取资源
+   * @param kind 资源类型
+   * @param name 资源名称
+   * @param namespace 命名空间
    */
   getResource(kind: string, name: string, namespace: string = 'default'): RuntimeResource | undefined {
-    return this.resources.get(`${kind}.${namespace}.${name}`);
+    const key = `${kind}.${namespace}.${name}`;
+    return this.resources.get(key);
   }
   
   /**
-   * Get all resources of specified type
-   * @param kind Resource type
-   * @param namespace Optional namespace filter
+   * 按类型获取资源
+   * @param kind 资源类型
+   * @param namespace 命名空间
    */
   getResourcesByKind(kind: string, namespace?: string): RuntimeResource[] {
-    return Array.from(this.resources.values())
-      .filter(resource => 
-        resource.kind === kind && 
-        (!namespace || resource.metadata?.namespace === namespace)
-      );
+    const resources: RuntimeResource[] = [];
+    
+    for (const [key, resource] of this.resources.entries()) {
+      if (resource.kind === kind && (!namespace || resource.metadata?.namespace === namespace)) {
+        resources.push(resource);
+      }
+    }
+    
+    return resources;
   }
   
   /**
-   * Get agent
-   * @param name Agent name
-   * @param namespace Namespace (used to form the agent ID)
+   * 获取代理实例
+   * @param name 代理名称
+   * @param namespace 命名空间
    */
   getAgent(name: string, namespace: string = 'default'): Agent | null {
     try {
-      // Form the correct agent ID format used in the runtime
-      const agentId = `${namespace}.${name}`;
-      return this.resourceManager.runtimeManager.getAgent(agentId);
+      return this.resourceManager.getAgent(name, namespace);
     } catch (error) {
+      console.warn(`Failed to get agent ${namespace}/${name}: ${error instanceof Error ? error.message : String(error)}`);
       return null;
     }
   }
   
   /**
-   * Get all agents
-   * @param namespace Optional namespace filter
+   * 获取代理资源
+   * @param namespace 命名空间
    */
   getAgents(namespace?: string): AgentResource[] {
     return this.getResourcesByKind('Agent', namespace) as AgentResource[];
   }
   
   /**
-   * Get all workflows
-   * @param namespace Optional namespace filter
+   * 获取工作流资源
+   * @param namespace 命名空间
    */
   getWorkflows(namespace?: string): WorkflowResource[] {
     return this.getResourcesByKind('Workflow', namespace) as WorkflowResource[];
   }
   
   /**
-   * Get all tools
-   * @param namespace Optional namespace filter
+   * 获取工具资源
+   * @param namespace 命名空间
    */
   getTools(namespace?: string): ToolResource[] {
     return this.getResourcesByKind('Tool', namespace) as ToolResource[];
   }
+  
+  /**
+   * 获取网络资源
+   * @param namespace 命名空间
+   */
+  getNetworks(namespace?: string): NetworkResource[] {
+    return this.getResourcesByKind('Network', namespace) as NetworkResource[];
+  }
+  
+  /**
+   * 清理资源
+   */
+  async cleanup(): Promise<void> {
+    try {
+      // 移除监听器
+      this.removeAllListeners();
+      
+      // 清理资源管理器
+      await this.resourceManager.cleanup();
+      
+      // 清空资源映射
+      this.resources.clear();
+      this.executions.clear();
+    } catch (error) {
+      console.error(`Error during cleanup: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
 }
 
 /**
- * Convenience function: Load and run workflow
- * @param options Run options
+ * 运行配置
+ * @param options 运行选项
  */
 export async function run(options: RunOptions): Promise<WorkflowResponse | AgentResponse> {
-  // Create MastraPod instance
-  const pod = new MastraPod({
-    env: options.env
-  });
+  let pod: MastraPod;
   
-  // Load file
-  if (options.file) {
-    await pod.addFile(options.file);
-  } else if (options.content) {
-    await pod.addContent(options.content);
-  } else {
-    throw new Error('Either file or content must be provided');
-  }
-  
-  // Run workflow or agent
-  if (options.workflow) {
-    return pod.runWorkflow(options.workflow, options.input || {});
-  } else if (options.agent) {
-    return pod.runAgent(options.agent, options.input || {});
-  } else {
-    throw new Error('Either workflow or agent must be specified');
+  try {
+    // 从文件或内容加载
+    if (options.file) {
+      pod = await MastraPod.loadFile(options.file, { env: options.env });
+    } else if (options.content) {
+      pod = await MastraPod.loadContent(options.content, { env: options.env });
+    } else {
+      throw new ValidationError('Either file or content must be provided');
+    }
+    
+    // 运行工作流或代理
+    if (options.workflow) {
+      return await pod.runWorkflow(options.workflow, options.input || {});
+    } else if (options.agent) {
+      return await pod.runAgent(options.agent, options.input || {});
+    } else {
+      throw new ValidationError('Either workflow or agent must be specified');
+    }
+  } catch (error) {
+    logError(error, 'MastraPod.run');
+    
+    // 返回错误响应
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    if (options.workflow) {
+      return {
+        executionId: `workflow-${uuidv4()}`,
+        error: errorMessage,
+        workflow: options.workflow || 'unknown',
+        status: 'failed'
+      };
+    } else {
+      return {
+        executionId: `agent-${uuidv4()}`,
+        error: errorMessage,
+        agent: options.agent || 'unknown',
+        status: 'failed'
+      };
+    }
   }
 }
 
-/**
- * Convenience function: Load MastraPod from file
- * @param filePath File path
- * @param options Loading options
- */
+// 公共API导出
 export async function loadFile(filePath: string, options: MastraPodLoadOptions = {}): Promise<MastraPod> {
   return MastraPod.loadFile(filePath, options);
 }
 
-/**
- * Convenience function: Load MastraPod from content
- * @param content YAML content
- * @param options Loading options
- */
 export async function loadContent(content: string, options: MastraPodLoadOptions = {}): Promise<MastraPod> {
   return MastraPod.loadContent(content, options);
 }
 
-/**
- * Convenience function: Create new application
- * @param options Options
- */
 export function createApp(options: MastraPodOptions = {}): MastraPod {
   return MastraPod.createApp(options);
-}
-
-/**
- * MastraPod options interface
- */
-export interface MastraPodOptions {
-  /**
-   * Environment variable mapping for resolving environment variable references
-   */
-  env?: Record<string, string>;
-}
-
-/**
- * MastraPod loading options interface
- */
-export interface MastraPodLoadOptions extends MastraPodOptions {
-  /**
-   * Whether to validate resources
-   */
-  validate?: boolean;
-}
-
-/**
- * Agent run options interface
- */
-export interface AgentRunOptions {
-  /**
-   * Namespace
-   */
-  namespace?: string;
-  
-  /**
-   * Execution ID
-   */
-  executionId?: string;
-}
-
-/**
- * Workflow run options interface
- */
-export interface WorkflowRunOptions {
-  /**
-   * Namespace
-   */
-  namespace?: string;
-  
-  /**
-   * Execution ID
-   */
-  executionId?: string;
-}
-
-/**
- * Tool call options interface
- */
-export interface ToolCallOptions {
-  /**
-   * Namespace
-   */
-  namespace?: string;
-  
-  /**
-   * Execution ID
-   */
-  executionId?: string;
-}
-
-/**
- * Agent response interface
- */
-export interface AgentResponse {
-  /**
-   * Execution ID
-   */
-  executionId: string;
-  
-  /**
-   * Result
-   */
-  result?: any;
-  
-  /**
-   * Error message
-   */
-  error?: string;
-  
-  /**
-   * Agent name
-   */
-  agent: string;
-  
-  /**
-   * Status
-   */
-  status: 'completed' | 'failed';
-}
-
-/**
- * Workflow response interface
- */
-export interface WorkflowResponse {
-  /**
-   * Execution ID
-   */
-  executionId: string;
-  
-  /**
-   * Result
-   */
-  result?: any;
-  
-  /**
-   * Error message
-   */
-  error?: string;
-  
-  /**
-   * Workflow name
-   */
-  workflow: string;
-  
-  /**
-   * Status
-   */
-  status: 'completed' | 'failed';
-}
-
-/**
- * Tool response interface
- */
-export interface ToolResponse {
-  /**
-   * Execution ID
-   */
-  executionId: string;
-  
-  /**
-   * Result
-   */
-  result?: any;
-  
-  /**
-   * Error message
-   */
-  error?: string;
-  
-  /**
-   * Tool name
-   */
-  tool: string;
-  
-  /**
-   * Status
-   */
-  status: 'completed' | 'failed';
-}
-
-/**
- * Run options interface
- */
-export interface RunOptions {
-  /**
-   * File path
-   */
-  file?: string;
-  
-  /**
-   * YAML content
-   */
-  content?: string;
-  
-  /**
-   * Workflow name
-   */
-  workflow?: string;
-  
-  /**
-   * Agent name
-   */
-  agent?: string;
-  
-  /**
-   * Input content
-   */
-  input?: Record<string, any>;
-  
-  /**
-   * Environment variables
-   */
-  env?: Record<string, string>;
+} 
 } 

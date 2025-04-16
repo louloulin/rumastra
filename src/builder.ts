@@ -1,9 +1,19 @@
 import { Agent, Mastra, Workflow } from '@mastra/core';
-import type { RootConfig, AgentConfig, WorkflowConfig } from './types';
-import { dynamicImport } from './utils';
+import { RootConfig, AgentConfig, WorkflowConfig } from './types';
+import { validateRootConfig } from './types/root';
+import { 
+  dynamicImport, 
+  ConfigError, 
+  ExecutionError, 
+  logError, 
+  handleAsyncError
+} from './utils';
 import { createToolExecutor, validateToolScript } from './toolExecutor';
 import path from 'path';
 
+/**
+ * 运行时构建器 - 负责从配置构建Mastra实例
+ */
 export class RuntimeBuilder {
   private config: RootConfig;
   private toolInstances: Record<string, any> = {};
@@ -11,33 +21,54 @@ export class RuntimeBuilder {
   private workflowInstances: Record<string, Workflow> = {};
   private basePath: string;
 
-  constructor(config: RootConfig, basePath: string = process.cwd()) {
-    this.config = config;
-    this.basePath = basePath;
+  /**
+   * 构造函数
+   * @param config 配置对象
+   * @param basePath 基础路径
+   */
+  constructor(config: any, basePath: string = process.cwd()) {
+    try {
+      // 验证配置
+      this.config = validateRootConfig(config);
+      this.basePath = basePath;
+    } catch (error) {
+      throw new ConfigError(
+        `Invalid configuration: ${error instanceof Error ? error.message : String(error)}`,
+        { config }
+      );
+    }
   }
 
   /**
    * 构建 Mastra 实例
    */
   async build(): Promise<Mastra> {
-    // 1. 加载工具
-    if (this.config.tools) {
-      await this.buildTools();
+    try {
+      // 1. 加载工具
+      if (this.config.tools) {
+        await this.buildTools();
+      }
+
+      // 2. 构建智能体
+      await this.buildAgents();
+
+      // 3. 构建工作流
+      if (this.config.workflows) {
+        await this.buildWorkflows();
+      }
+
+      // 4. 创建 Mastra 实例
+      return new Mastra({
+        agents: this.agentInstances,
+        workflows: this.workflowInstances,
+      });
+    } catch (error) {
+      logError(error, 'RuntimeBuilder.build');
+      throw new ConfigError(
+        `Failed to build Mastra instance: ${error instanceof Error ? error.message : String(error)}`,
+        { error }
+      );
     }
-
-    // 2. 构建智能体
-    await this.buildAgents();
-
-    // 3. 构建工作流
-    if (this.config.workflows) {
-      await this.buildWorkflows();
-    }
-
-    // 4. 创建 Mastra 实例
-    return new Mastra({
-      agents: this.agentInstances,
-      workflows: this.workflowInstances,
-    });
   }
 
   /**
@@ -48,7 +79,7 @@ export class RuntimeBuilder {
       try {
         console.log(`Building tool: ${name} from ${toolConfig.execute}`);
         
-        // Resolve tool path if relative
+        // 解析工具路径
         const toolPath = toolConfig.execute.startsWith('.')
           ? path.resolve(this.basePath, toolConfig.execute)
           : toolConfig.execute;
@@ -72,10 +103,13 @@ export class RuntimeBuilder {
         };
         
         console.log(`Successfully loaded tool: ${name}`);
-      } catch (error: unknown) {
+      } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.error(`Failed to load tool ${name}:`, errorMessage);
-        throw new Error(`Failed to build tool ${name}: ${errorMessage}`);
+        throw new ConfigError(`Failed to build tool ${name}: ${errorMessage}`, { 
+          toolName: name, 
+          toolConfig,
+          error
+        });
       }
     }
   }
@@ -85,8 +119,17 @@ export class RuntimeBuilder {
    */
   private async buildAgents(): Promise<void> {
     for (const [name, agentConfig] of Object.entries(this.config.agents)) {
-      this.agentInstances[name] = await this.buildAgent(agentConfig);
-      console.log(`Successfully built agent: ${name}`);
+      try {
+        this.agentInstances[name] = await this.buildAgent(agentConfig);
+        console.log(`Successfully built agent: ${name}`);
+      } catch (error) {
+        logError(error, `RuntimeBuilder.buildAgents[${name}]`);
+        throw new ConfigError(`Failed to build agent ${name}: ${error instanceof Error ? error.message : String(error)}`, {
+          agentName: name,
+          agentConfig,
+          error
+        });
+      }
     }
   }
 
@@ -95,7 +138,14 @@ export class RuntimeBuilder {
    */
   private async buildAgent(config: AgentConfig): Promise<Agent> {
     // 1. 加载模型
-    const model = await this.loadModel(config.model);
+    const [model, modelError] = await handleAsyncError(this.loadModel(config.model));
+    
+    if (modelError) {
+      throw new ConfigError(`Failed to load model for agent ${config.name}: ${modelError.message}`, {
+        model: config.model,
+        error: modelError
+      });
+    }
 
     // 2. 收集工具
     const tools: Record<string, any> = {};
@@ -104,19 +154,39 @@ export class RuntimeBuilder {
         if (this.toolInstances[toolId]) {
           tools[toolName] = this.toolInstances[toolId];
         } else {
-          throw new Error(`Tool not found: ${toolId}`);
+          throw new ConfigError(`Tool not found: ${toolId}`, { 
+            toolId, 
+            availableTools: Object.keys(this.toolInstances) 
+          });
         }
       }
     }
 
-    // 3. 创建智能体
+    // 3. 构建内存和语音组件
+    const [memory, memoryError] = config.memory?.enabled 
+      ? await handleAsyncError(this.buildMemory(config.memory))
+      : [undefined, null];
+      
+    if (memoryError) {
+      console.warn(`Failed to build memory for agent ${config.name}: ${memoryError.message}`);
+    }
+    
+    const [voice, voiceError] = config.voice?.enabled 
+      ? await handleAsyncError(this.buildVoice(config.voice))
+      : [undefined, null];
+      
+    if (voiceError) {
+      console.warn(`Failed to build voice for agent ${config.name}: ${voiceError.message}`);
+    }
+
+    // 4. 创建智能体
     return new Agent({
       name: config.name,
       instructions: config.instructions,
       model,
       tools,
-      memory: config.memory ? await this.buildMemory(config.memory) : undefined,
-      voice: config.voice ? await this.buildVoice(config.voice) : undefined,
+      memory,
+      voice,
     });
   }
 
@@ -130,8 +200,12 @@ export class RuntimeBuilder {
         this.workflowInstances[name] = workflow;
         console.log(`Successfully built workflow: ${name}`);
       } catch (error) {
-        console.error(`Error building workflow ${name}:`, error);
-        throw error;
+        logError(error, `RuntimeBuilder.buildWorkflows[${name}]`);
+        throw new ConfigError(`Failed to build workflow ${name}: ${error instanceof Error ? error.message : String(error)}`, {
+          workflowName: name,
+          workflowConfig,
+          error
+        });
       }
     }
   }
@@ -140,11 +214,30 @@ export class RuntimeBuilder {
    * 构建单个工作流
    */
   private buildWorkflow(config: WorkflowConfig): Workflow {
+    // 验证初始步骤存在
+    const hasInitialStep = config.steps.some(step => step.id === config.initialStep);
+    if (!hasInitialStep) {
+      throw new ConfigError(`Initial step '${config.initialStep}' not found in workflow steps`, {
+        initialStep: config.initialStep,
+        availableSteps: config.steps.map(s => s.id)
+      });
+    }
+
     // 将步骤转换为工作流格式
     const workflowSteps = config.steps.map(step => {
-      const agent = this.agentInstances[step.agent];
+      // 验证步骤使用的代理存在
+      const agentId = step.agentId || step.agent;
+      if (!agentId) {
+        throw new ConfigError(`No agent specified for step '${step.id}'`, { step });
+      }
+      
+      const agent = this.agentInstances[agentId];
       if (!agent) {
-        throw new Error(`Agent not found: ${step.agent}`);
+        throw new ConfigError(`Agent not found for step '${step.id}': ${agentId}`, {
+          stepId: step.id,
+          agentId,
+          availableAgents: Object.keys(this.agentInstances)
+        });
       }
 
       return {
@@ -153,24 +246,17 @@ export class RuntimeBuilder {
         agent,
         input: step.input,
         output: step.output,
-        next: step.next,
+        next: step.next || (step.transitions?.next ? [step.transitions.next] : undefined),
       };
     });
 
-    // 创建工作流的参数
-    const workflowParams = {
+    // 创建工作流
+    return new Workflow({
       name: config.name,
+      description: config.description,
       initialStep: config.initialStep,
       steps: workflowSteps,
-    };
-
-    // 添加可选描述
-    if (config.description) {
-      Object.assign(workflowParams, { description: config.description });
-    }
-
-    // 创建工作流实例
-    return new Workflow(workflowParams as any);
+    });
   }
 
   /**
@@ -178,13 +264,27 @@ export class RuntimeBuilder {
    */
   private async loadModel(modelConfig: AgentConfig['model']): Promise<any> {
     try {
+      // 尝试加载模型提供者
       const providerModule = await dynamicImport(`@ai-sdk/${modelConfig.provider}`, this.basePath);
       const provider = providerModule.default || providerModule;
       return provider(modelConfig.name);
     } catch (error) {
-      // 开发环境下可以使用mock模型
+      // 开发环境下使用mock模型
       console.warn(`Failed to load model provider: ${modelConfig.provider}. Using mock model instead.`);
-      return { provider: modelConfig.provider, name: modelConfig.name };
+      console.warn(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      
+      // 返回模拟模型
+      return { 
+        provider: modelConfig.provider, 
+        name: modelConfig.name,
+        type: 'mock',
+        generate: async (prompt: string) => ({ 
+          response: `[Mock ${modelConfig.name}] Response to: ${prompt}` 
+        }),
+        stream: async function*(prompt: string) {
+          yield `[Mock ${modelConfig.name}] Streaming response to: ${prompt}`;
+        }
+      };
     }
   }
 
@@ -195,13 +295,15 @@ export class RuntimeBuilder {
     if (!memoryConfig.enabled) return undefined;
 
     try {
-      const { type, config = {} } = memoryConfig;
+      const { type = 'memory', config = {} } = memoryConfig;
       const memoryModule = await dynamicImport(`@mastra/${type}`, this.basePath);
       const MemoryClass = memoryModule.default || memoryModule;
       return new MemoryClass(config);
     } catch (error) {
-      console.warn(`Failed to load memory: ${memoryConfig.type}. Memory will not be available.`);
-      return undefined;
+      throw new ConfigError(`Failed to build memory component: ${error instanceof Error ? error.message : String(error)}`, {
+        memoryConfig,
+        error
+      });
     }
   }
 
@@ -212,53 +314,55 @@ export class RuntimeBuilder {
     if (!voiceConfig.enabled) return undefined;
 
     try {
-      const { provider, config = {} } = voiceConfig;
-      const voiceModule = await dynamicImport(`@mastra/voice-${provider}`, this.basePath);
+      const { provider = 'voice', config = {} } = voiceConfig;
+      const voiceModule = await dynamicImport(`@mastra/${provider}`, this.basePath);
       const VoiceClass = voiceModule.default || voiceModule;
       return new VoiceClass(config);
     } catch (error) {
-      console.warn(`Failed to load voice provider: ${voiceConfig.provider}. Voice will not be available.`);
-      return undefined;
+      throw new ConfigError(`Failed to build voice component: ${error instanceof Error ? error.message : String(error)}`, {
+        voiceConfig,
+        error
+      });
     }
   }
 
   /**
-   * 获取构建好的工具实例
+   * 获取构建好的工具
    */
   getTools(): Record<string, any> {
-    return this.toolInstances;
+    return { ...this.toolInstances };
   }
 
   /**
-   * 获取构建好的智能体实例
+   * 获取构建好的智能体
    */
   getAgents(): Record<string, Agent> {
-    return this.agentInstances;
+    return { ...this.agentInstances };
   }
 
   /**
-   * 获取构建好的工作流实例
+   * 获取构建好的工作流
    */
   getWorkflows(): Record<string, Workflow> {
-    return this.workflowInstances;
+    return { ...this.workflowInstances };
   }
 
   /**
-   * 获取特定工具实例
+   * 获取指定工具
    */
   getTool(id: string): any {
     return this.toolInstances[id];
   }
 
   /**
-   * 获取特定智能体实例
+   * 获取指定智能体
    */
   getAgent(id: string): Agent | undefined {
     return this.agentInstances[id];
   }
 
   /**
-   * 获取特定工作流实例
+   * 获取指定工作流
    */
   getWorkflow(id: string): Workflow | undefined {
     return this.workflowInstances[id];
