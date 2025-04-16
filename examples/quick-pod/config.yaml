@@ -1,0 +1,104 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: quick-pod
+  namespace: default
+
+# 全局配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+
+# 资源定义
+resources:
+  # 定义一个简单的搜索工具
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: search-tool
+      namespace: default
+    spec:
+      id: search
+      name: "Search Tool"
+      description: "搜索信息"
+      type: function
+      execute: |
+        async function search(query) {
+          console.log(`[Search] 搜索: ${query}`);
+          return `这是关于 ${query} 的搜索结果`;
+        }
+
+  # 定义天气查询工具
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: weather-tool
+      namespace: default
+    spec:
+      id: weather
+      name: "Weather Tool"
+      description: "查询城市天气信息"
+      type: function
+      execute: |
+        async function weather(city) {
+          console.log(`[Weather] 查询天气: ${city}`);
+          // 模拟天气数据
+          const conditions = ['晴天', '多云', '小雨', '大雨', '阴天'];
+          const condition = conditions[Math.floor(Math.random() * conditions.length)];
+          const temperature = Math.floor(15 + Math.random() * 20);
+          return `${city}的天气: ${condition}, 温度 ${temperature}°C`;
+        }
+
+  # 定义计算器工具
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: calculator-tool
+      namespace: default
+    spec:
+      id: calculate
+      name: "Calculator Tool"
+      description: "计算数学表达式"
+      type: function
+      execute: |
+        async function calculate(expression) {
+          console.log(`[Calculator] 计算: ${expression}`);
+          try {
+            // 安全地计算表达式
+            const sanitizedExpr = expression.replace(/[^0-9+\-*/.()\s]/g, '');
+            const result = eval(sanitizedExpr);
+            return `计算结果: ${expression} = ${result}`;
+          } catch (error) {
+            return `计算出错: ${error.message}`;
+          }
+        }
+
+  # 定义一个问答助手
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: qa-agent
+      namespace: default
+    spec:
+      id: qa-agent
+      name: "问答助手"
+      description: "回答用户问题的助手"
+      instructions: |
+        你是一个问答助手，可以回答用户的各种问题。
+        你可以使用以下工具来辅助回答:
+        1. 搜索工具: 用于查找信息
+        2. 天气工具: 用于查询城市天气
+        3. 计算器: 用于计算数学表达式
+        
+        请根据用户问题的类型，选择合适的工具。如果用户询问天气，使用天气工具；
+        如果用户询问计算问题，使用计算器工具；如果用户询问一般信息，使用搜索工具。
+      model:
+        provider: openai
+        name: gpt-4
+        parameters:
+          temperature: 0.7
+          max_tokens: 500
+      tools:
+        search: search-tool
+        weather: weather-tool
+        calculate: calculator-tool 

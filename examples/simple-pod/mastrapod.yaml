@@ -1,0 +1,125 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: simple-pod
+  namespace: default
+  description: "简单的MastraPod示例，用于测试基本功能"
+  labels:
+    env: test
+    purpose: validation
+
+# 全局配置部分
+# 全局提供商配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+    defaultModel: gpt-4
+  anthropic:
+    apiKey: ${env.ANTHROPIC_API_KEY}
+    defaultModel: claude-3-opus-20240229
+
+# 内存配置
+memory:
+  type: ephemeral
+  config:
+    ttl: 3600
+    namespace: simple-pod
+
+# 日志配置
+logging:
+  level: debug
+  format: json
+
+# 资源部分 - 定义所有 AI 应用组件
+resources:
+  # 工具资源定义
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: calculator-tool
+    spec:
+      id: calculator
+      description: "执行基本数学计算"
+      execute: "tools/calculator.js"
+      parameters:
+        type: object
+        required: ["expression"]
+        properties:
+          expression:
+            type: string
+            description: "数学表达式，如 2 + 2"
+
+  # 代理资源定义
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: math-agent
+      namespace: default
+    spec:
+      name: "数学助手"
+      instructions: "你是一个数学助手，能够帮助用户解决数学问题。"
+      model:
+        provider: openai
+        name: gpt-4
+      tools:
+        calculator: calculator-tool
+
+  # 工作流资源定义
+  - apiVersion: mastra/v1
+    kind: Workflow
+    metadata:
+      name: math-workflow
+    spec:
+      name: "数学问题解决流程"
+      description: "解决数学问题的工作流"
+      initialStep: understand-problem
+      steps:
+        - id: understand-problem
+          name: "理解问题"
+          agent: math-agent
+          next: solve-problem
+        
+        - id: solve-problem
+          name: "解决问题"
+          agent: math-agent
+          next: explain-solution
+        
+        - id: explain-solution
+          name: "解释解决方案"
+          agent: math-agent
+          next: END
+
+  # 自定义资源定义
+  - apiVersion: mastra/v1
+    kind: CustomResourceDefinition
+    metadata:
+      name: mathproblem.mastra.ai
+    spec:
+      group: mastra.ai
+      names:
+        kind: MathProblem
+        plural: mathproblems
+      scope: Namespaced
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                problem:
+                  type: string
+                difficulty:
+                  type: string
+                  enum: ["easy", "medium", "hard"]
+              required: ["problem"]
+
+  # 自定义资源示例
+  - apiVersion: mastra.ai/v1
+    kind: MathProblem
+    metadata:
+      name: sample-problem
+      namespace: default
+    spec:
+      problem: "如果x² + 3x + 2 = 0，求x的值"
+      difficulty: "medium" 

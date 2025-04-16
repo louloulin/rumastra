@@ -1,0 +1,21 @@
+{
+  "name": "customer-support-network",
+  "version": "1.0.0",
+  "description": "智能客服网络示例，展示Mastra NetworkExecutor的使用",
+  "main": "index.ts",
+  "scripts": {
+    "start": "ts-node index.ts",
+    "routing": "ts-node index.ts routing",
+    "tracing": "ts-node index.ts tracing",
+    "interactive": "ts-node index.ts interactive",
+    "batch": "ts-node index.ts batch"
+  },
+  "dependencies": {
+    "@mastra/core": "latest",
+    "@mastra/runtimes": "latest"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.0"
+  }
+} 

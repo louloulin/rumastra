@@ -1,0 +1,78 @@
+apiVersion: mastra.ai/v1
+kind: Network
+metadata:
+  name: example-network
+  namespace: default
+  labels:
+    app: demo
+    type: expert-network
+  annotations:
+    description: 一个简单的专家网络
+    creator: mastrapod-cli
+  creationTimestamp: '2025-04-07T12:19:26.593Z'
+spec:
+  description: 这个网络由多个专家智能体组成，协作解决复杂问题
+  coordinator:
+    name: team-lead
+    model:
+      provider: openai
+      name: gpt-4o
+      temperature: 0.4
+    systemPrompt: |
+      你是一个团队领导者，负责协调专家团队解决问题。
+      你的目标是理解问题，决定哪个专家最适合解决问题的各个部分，
+      并整合他们的回答形成最终解决方案。
+      始终考虑每个专家的专业领域，并确保最终答案全面且连贯。
+  agents:
+    - name: research-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.3
+      systemPrompt: |
+        你是一个研究专家，擅长收集和分析信息。
+        当被问到问题时，你应该提供深入、全面的研究和事实分析。
+        尽可能引用来源和数据。
+    - name: code-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.2
+      systemPrompt: |
+        你是一个编程专家，专注于提供高质量的代码解决方案。
+        当收到编程相关问题时，提供清晰、高效且可维护的代码。
+        解释你的代码并讨论潜在的边缘情况和优化。
+    - name: business-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.5
+      systemPrompt: |
+        你是一个商业策略专家，擅长提供商业洞见和建议。
+        分析商业问题，提供战略建议，并考虑市场趋势、
+        竞争分析、成本效益和风险评估。
+    - name: creative-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.8
+      systemPrompt: |
+        你是一个创意思考专家，擅长创新和跳出框架思考。
+        提供独特的视角和创造性解决方案，思考新的可能性
+        和非传统方法。
+  routing:
+    type: dynamic
+    strategy: coordinator-decision
+    defaultAgent: research-expert
+  memory:
+    type: shared
+    config:
+      vectorStore: pg
+      collection: expert-network-memory
+  logging:
+    level: debug
+    destination: file
+    filename: expert-network.log
+  maxTokens: 8000
+  maxTurns: 15
+  timeout: 300

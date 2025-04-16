@@ -1,0 +1,106 @@
+version: "1.0.0"
+
+tools:
+  cooking:
+    id: cooking
+    description: 根据可用食材推荐食谱 (CommonJS版本)
+    execute: examples/mock-cooking.cjs
+    inputSchema: 
+      type: object
+      properties:
+        ingredients:
+          type: array
+          items:
+            type: string
+  
+  cooking-esm:
+    id: cooking-esm
+    description: 根据可用食材推荐食谱 (ES Module版本)
+    execute: examples/mock-cooking.js
+    inputSchema: 
+      type: object
+      properties:
+        ingredients:
+          type: array
+          items:
+            type: string
+
+agents:
+  chef:
+    name: 厨师助手
+    instructions: |
+      你是一个厨师助手，你会根据用户提供的食材建议可以制作的食谱。
+      当用户告诉你他们有什么食材时，你会使用烹饪工具来查找可以制作的食谱。
+    model:
+      provider: openai
+      name: gpt-3.5-turbo
+    tools:
+      cooking: cooking
+    memory:
+      enabled: true
+  
+  chef-esm:
+    name: ES Module厨师助手
+    instructions: |
+      你是一个厨师助手，你会根据用户提供的食材建议可以制作的食谱。
+      当用户告诉你他们有什么食材时，你会使用ES Module版本的烹饪工具来查找可以制作的食谱。
+    model:
+      provider: openai
+      name: gpt-3.5-turbo
+    tools:
+      cooking: cooking-esm
+    memory:
+      enabled: true
+
+workflows:
+  suggestRecipe:
+    name: 推荐食谱
+    description: 根据用户提供的食材推荐适合的食谱
+    initialStep: checkIngredients
+    steps:
+      - id: checkIngredients
+        name: 检查可用食材
+        agent: chef
+        input:
+          type: user-input
+          description: 请告诉我你有哪些食材，我会推荐适合的食谱
+        output:
+          type: ingredients-list
+          description: 用户提供的食材列表
+        next: suggestRecipes
+      - id: suggestRecipes
+        name: 推荐食谱
+        agent: chef
+        input:
+          type: step-input
+          from: checkIngredients
+          description: 上一步提供的食材
+        output:
+          type: recipes-list
+          description: 推荐的食谱列表
+  
+  suggestRecipeESM:
+    name: 推荐食谱(ES Module版本)
+    description: 使用ES Module版本的工具根据用户提供的食材推荐适合的食谱
+    initialStep: checkIngredientsESM
+    steps:
+      - id: checkIngredientsESM
+        name: 检查可用食材
+        agent: chef-esm
+        input:
+          type: user-input
+          description: 请告诉我你有哪些食材，我会使用ES Module工具为您推荐适合的食谱
+        output:
+          type: ingredients-list
+          description: 用户提供的食材列表
+        next: suggestRecipesESM
+      - id: suggestRecipesESM
+        name: 推荐食谱
+        agent: chef-esm
+        input:
+          type: step-input
+          from: checkIngredientsESM
+          description: 上一步提供的食材
+        output:
+          type: recipes-list
+          description: 推荐的食谱列表 

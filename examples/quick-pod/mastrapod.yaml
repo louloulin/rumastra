@@ -1,0 +1,84 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: quick-pod-example
+  namespace: default
+
+# 全局配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+
+# 资源定义
+resources:
+  # 定义计算器工具
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: calculator-tool
+      namespace: default
+    spec:
+      id: calculator
+      name: "Calculator Tool"
+      description: "计算数学表达式"
+      type: function
+      execute: |
+        async function calculator(params) {
+          const { expression } = params;
+          console.log(`[Calculator] 计算: ${expression}`);
+          
+          try {
+            // 安全地计算表达式
+            const sanitizedExpr = expression.replace(/[^0-9+\-*/.()\s]/g, '');
+            const result = eval(sanitizedExpr);
+            return { result };
+          } catch (error) {
+            return { error: error.message };
+          }
+        }
+
+  # 定义一个数学助手
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: math-agent
+      namespace: default
+    spec:
+      id: math-agent
+      name: "数学助手"
+      description: "解决数学问题的助手"
+      instructions: |
+        你是一个数学助手，擅长解决各种数学问题。
+        如果需要计算，可以使用计算器工具。
+      model:
+        provider: openai
+        name: gpt-4
+        parameters:
+          temperature: 0.3
+          max_tokens: 500
+      tools:
+        calculator: calculator-tool
+
+  # 定义数学工作流
+  - apiVersion: mastra/v1
+    kind: Workflow
+    metadata:
+      name: math-workflow
+      namespace: default
+    spec:
+      id: math-workflow
+      name: "数学工作流"
+      description: "解决数学问题的工作流"
+      input:
+        type: object
+        properties:
+          problem:
+            type: string
+            description: "数学问题"
+      steps:
+        - id: solve-problem
+          name: "解决问题"
+          agent: math-agent
+          input: |
+            ${input.problem}
+      output: "${steps['solve-problem'].output}" 

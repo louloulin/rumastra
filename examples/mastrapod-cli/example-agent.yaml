@@ -1,0 +1,39 @@
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: example-agent
+  namespace: default
+  labels:
+    app: demo
+    type: qa
+  annotations:
+    description: "一个简单的问答智能体"
+    creator: "mastrapod-cli"
+spec:
+  model:
+    provider: openai
+    name: gpt-4o
+    temperature: 0.7
+  systemPrompt: |
+    你是一个由 MastraPod 部署的智能助手。
+    你的任务是用中文回答用户的问题，并保持友好和专业。
+    如果你不确定答案，请坦诚说明而不是猜测。
+  tools:
+    - name: web-search
+      type: function
+      config:
+        description: "使用搜索引擎搜索最新信息"
+    - name: code-interpreter
+      type: function
+      config:
+        description: "执行代码解释特定问题"
+  memory:
+    type: vector
+    config:
+      vectorStore: pg
+      collection: example-conversations
+  logging:
+    level: info
+    destination: console
+  maxTokens: 2000
+  maxTurns: 10 

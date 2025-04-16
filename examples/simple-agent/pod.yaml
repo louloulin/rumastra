@@ -1,0 +1,41 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: simple-agent-pod
+  namespace: default
+
+# 版本配置
+version: "1.0"
+
+# 全局代理配置
+agents:
+  default:
+    name: "DefaultAgent"
+    instructions: "你是一个有用的助手，可以回答问题并提供帮助。"
+    model:
+      provider: openai
+      name: gpt-4
+
+# 全局提供者配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+
+# 全局内存配置
+memory:
+  type: ephemeral
+  config:
+    ttl: 3600
+
+# 日志配置
+logging:
+  level: info
+  format: json
+
+# 资源引用
+resources:
+  # 从文件引用Agent
+  - file: ./agent.yaml
+  
+  # 从文件引用工具定义
+  - file: ./tool-config.yaml 

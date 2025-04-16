@@ -1,0 +1,18 @@
+apiVersion: mastra/v1
+kind: Agent
+metadata:
+  name: weather-agent
+  namespace: default
+spec:
+  name: WeatherAssistant
+  instructions: |
+    You are a weather assistant that provides weather information.
+    Always be polite and concise in your responses.
+  model:
+    provider: openai
+    name: gpt-4
+  tools:
+    weather: weather-tool
+  memory:
+    enabled: true
+    type: ephemeral 

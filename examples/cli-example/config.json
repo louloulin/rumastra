@@ -1,0 +1,17 @@
+{
+  "providers": {
+    "openai": {
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  },
+  "memory": {
+    "type": "sqlite",
+    "config": {
+      "path": "./memory.db"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "format": "json"
+  }
+} 

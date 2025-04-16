@@ -1,0 +1,89 @@
+# 自定义资源 - 只有在 ENABLE_CUSTOM_TOOLS=true 时才会被加载
+# 此文件包含特殊用途的工具和资源定义
+
+# 高级分析工具
+apiVersion: mastra/v1
+kind: Tool
+metadata:
+  name: predictive-analytics-tool
+spec:
+  id: predictive-analytics
+  description: "执行预测性分析，基于历史数据预测未来趋势"
+  execute: "specialized/predictive-analytics.js"
+  parameters:
+    type: object
+    required: ["dataset", "timeframe"]
+    properties:
+      dataset:
+        type: string
+        description: "数据集名称"
+      timeframe:
+        type: string
+        description: "预测时间范围，例如：'7d', '30d', '3m', '1y'"
+      features:
+        type: array
+        items:
+          type: string
+        description: "要包含在预测中的特征"
+
+---
+# 特殊用途代理
+apiVersion: mastra/v1
+kind: Agent
+metadata:
+  name: predictive-analyst-agent
+spec:
+  name: "预测分析专家"
+  instructions: "你是预测分析专家，能够基于历史数据预测未来趋势，并提供详细的分析报告。"
+  model:
+    provider: anthropic
+    name: claude-3-opus-20240229
+    temperature: 0.2
+    maxTokens: 2000
+    systemPrompt: "你是一个专业的预测分析专家，擅长分析历史数据并预测未来趋势。"
+  tools:
+    query-database: database-query-tool
+    advanced-analytics: advanced-analytics-tool
+    predictive-analytics: predictive-analytics-tool
+
+---
+# 预测分析工作流
+apiVersion: mastra/v1
+kind: Workflow
+metadata:
+  name: predictive-analysis-workflow
+spec:
+  name: "预测分析工作流"
+  description: "预测分析工作流，包括数据获取、分析和预测未来趋势"
+  initialStep: fetch-historical-data
+  steps:
+    - id: fetch-historical-data
+      name: "获取历史数据"
+      agent: data-analyst-agent
+      input:
+        query: "请查询过去12个月的销售数据，按月汇总"
+      next: analyze-patterns
+    
+    - id: analyze-patterns
+      name: "分析模式"
+      agent: predictive-analyst-agent
+      input:
+        task: "分析以下历史销售数据，识别关键模式和趋势："
+        data: "${steps.fetch-historical-data.output}"
+      next: generate-predictions
+    
+    - id: generate-predictions
+      name: "生成预测"
+      agent: predictive-analyst-agent
+      input:
+        task: "基于以下模式分析，预测未来6个月的销售趋势："
+        data: "${steps.analyze-patterns.output}"
+      next: summarize-forecast
+    
+    - id: summarize-forecast
+      name: "总结预测"
+      agent: summarizer-agent
+      input:
+        content: "${steps.generate-predictions.output}"
+        format: "business-report"
+      next: END 

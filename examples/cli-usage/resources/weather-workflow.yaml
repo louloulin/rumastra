@@ -1,0 +1,74 @@
+apiVersion: mastra.ai/v1
+kind: Workflow
+metadata:
+  name: weather-workflow
+  namespace: demo
+spec:
+  steps:
+    - id: validateInput
+      type: function
+      function:
+        name: validateInput
+        code: |
+          (input) => {
+            if (!input.location) {
+              throw new Error('Location is required');
+            }
+            return {
+              location: input.location,
+              additionalInfo: input.additionalInfo || false
+            };
+          }
+      next: getWeatherInfo
+
+    - id: getWeatherInfo
+      type: agent
+      agent:
+        name: weather-agent
+        namespace: demo
+      input:
+        location: "{{ steps.validateInput.output.location }}"
+        additionalInfo: "{{ steps.validateInput.output.additionalInfo }}"
+      next: formatResponse
+
+    - id: formatResponse
+      type: function
+      function:
+        name: formatResponse
+        code: |
+          (input, context) => {
+            const weatherInfo = context.steps.getWeatherInfo.output;
+            const timestamp = new Date().toISOString();
+            
+            return {
+              location: context.steps.validateInput.output.location,
+              queryTime: timestamp,
+              weatherInfo: weatherInfo
+            };
+          }
+
+  input:
+    type: object
+    required:
+      - location
+    properties:
+      location:
+        type: string
+        description: The location to get weather information for
+      additionalInfo:
+        type: boolean
+        description: Whether to include additional detailed weather information
+        default: false
+
+  output:
+    type: object
+    properties:
+      location:
+        type: string
+        description: The location weather information was retrieved for
+      queryTime:
+        type: string
+        description: The time when the weather information was queried
+      weatherInfo:
+        type: object
+        description: The weather information retrieved 

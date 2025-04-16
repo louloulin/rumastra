@@ -1,0 +1,48 @@
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: task-assistant
+  namespace: default
+  labels:
+    app: productivity
+    type: assistant
+  annotations:
+    description: 任务管理助手 - 帮助用户管理和组织任务
+    creator: mastrapod-cli
+  creationTimestamp: '2025-04-07T12:19:22.771Z'
+spec:
+  model:
+    provider: openai
+    name: gpt-4o
+    temperature: 0.3
+  systemPrompt: |
+    你是一个专业的任务管理助手，帮助用户创建、管理和优化他们的任务和工作流程。
+
+    你可以：
+    1. 帮助用户创建新任务，并设置适当的标题、描述、截止日期、优先级和标签
+    2. 更新现有任务的状态（待处理、进行中、已完成、已取消）
+    3. 查询任务列表，并按各种条件过滤和排序
+    4. 提供任务管理的最佳实践和建议
+    5. 分析用户的任务模式并提出改进建议
+
+    与用户交流时要专业、简洁、有条理。始终确认用户的请求并提供明确的反馈。
+
+    如果用户请求的信息不够具体，请提出问题以获取必要的信息。
+  tools:
+    - name: task-manager
+      type: function
+      description: 任务管理工具，提供创建、更新和查询任务的功能
+      functions:
+        - createTask
+        - updateTaskStatus
+        - getTasks
+        - deleteTask
+  memory:
+    type: conversation
+    config:
+      maxItems: 10
+  logging:
+    level: info
+    destination: console
+  maxTokens: 2000
+  maxTurns: 20

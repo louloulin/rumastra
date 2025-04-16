@@ -1,0 +1,69 @@
+{
+  "name": "@mastra/runtimes",
+  "version": "0.1.0",
+  "description": "Runtime environments and configuration support for Mastra agents and workflows",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mastra": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "src/scriptRunner.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    },
+    "./runner": "./src/scriptRunner.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsup --format esm,cjs && cp src/scriptRunner.js dist/",
+    "clean": "rimraf dist",
+    "dev": "tsup --format esm,cjs --watch",
+    "lint": "eslint \"src/**/*.ts*\"",
+    "test": "node ./dist/test.js",
+    "test:manual": "node test.mjs",
+    "test:ts": "node test-ts.mjs",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:ts-node": "NODE_OPTIONS=\"--import tsx\" vitest run test/mastrapod.test.ts"
+  },
+  "dependencies": {
+    "@mastra/core": "0.8.2",
+    "@types/uuid": "^10.0.0",
+    "better-sqlite3": "^11.9.1",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "fs-extra": "^11.3.0",
+    "glob": "^10.4.5",
+    "js-yaml": "^4.1.0",
+    "ora": "^8.0.1",
+    "table": "^6.8.1",
+    "uuid": "^11.1.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/chalk": "^2.2.4",
+    "@types/commander": "^2.12.5",
+    "@types/fs-extra": "^11.0.4",
+    "@types/glob": "^8.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^18.19.76",
+    "@types/ora": "^3.2.0",
+    "@types/table": "^6.3.2",
+    "@vitest/coverage-v8": "^1.6.1",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.1"
+  },
+  "peerDependencies": {
+    "@mastra/core": "0.8.2"
+  }
+}

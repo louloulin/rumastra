@@ -1,0 +1,260 @@
+apiVersion: mastra.ai/v1
+kind: Tool
+metadata:
+  name: task-manager
+  namespace: default
+  labels:
+    app: productivity
+    type: management
+  annotations:
+    description: "任务管理工具 - 用于创建、更新和管理任务"
+    creator: "mastrapod-cli"
+spec:
+  description: "这个工具提供任务管理功能，包括创建任务、更新状态、设置优先级和查询任务"
+  type: function
+  implementation:
+    language: javascript
+    code: |
+      /**
+       * 任务管理工具 - 提供任务管理相关功能
+       */
+      
+      // 模拟任务存储
+      const taskStore = {
+        tasks: {},
+        lastId: 0
+      };
+      
+      module.exports = {
+        // 创建新任务
+        createTask: async (params) => {
+          const { title, description, dueDate, priority = 'medium', tags = [] } = params;
+          
+          if (!title) {
+            throw new Error('必须提供任务标题');
+          }
+          
+          // 生成任务ID
+          const taskId = `task-${++taskStore.lastId}`;
+          
+          // 创建任务对象
+          const task = {
+            id: taskId,
+            title,
+            description,
+            createdAt: new Date().toISOString(),
+            dueDate: dueDate || null,
+            priority,
+            tags,
+            status: 'pending',
+            completedAt: null
+          };
+          
+          // 存储任务
+          taskStore.tasks[taskId] = task;
+          
+          console.log(`创建新任务: ${title} (${taskId})`);
+          
+          return {
+            success: true,
+            task
+          };
+        },
+        
+        // 更新任务状态
+        updateTaskStatus: async (params) => {
+          const { taskId, status } = params;
+          
+          if (!taskId || !status) {
+            throw new Error('必须提供任务ID和状态');
+          }
+          
+          const task = taskStore.tasks[taskId];
+          if (!task) {
+            throw new Error(`任务 ${taskId} 不存在`);
+          }
+          
+          const validStatuses = ['pending', 'in-progress', 'completed', 'cancelled'];
+          if (!validStatuses.includes(status)) {
+            throw new Error(`无效的状态: ${status}`);
+          }
+          
+          // 更新任务状态
+          task.status = status;
+          
+          // 如果标记为完成，设置完成时间
+          if (status === 'completed' && !task.completedAt) {
+            task.completedAt = new Date().toISOString();
+          } else if (status !== 'completed') {
+            task.completedAt = null;
+          }
+          
+          console.log(`更新任务 ${taskId} 状态为: ${status}`);
+          
+          return {
+            success: true,
+            task
+          };
+        },
+        
+        // 查询任务
+        getTasks: async (params) => {
+          const { status, priority, tags, sortBy = 'createdAt', limit = 10 } = params || {};
+          
+          // 从存储中获取所有任务
+          let tasks = Object.values(taskStore.tasks);
+          
+          // 应用过滤器
+          if (status) {
+            tasks = tasks.filter(task => task.status === status);
+          }
+          
+          if (priority) {
+            tasks = tasks.filter(task => task.priority === priority);
+          }
+          
+          if (tags && tags.length > 0) {
+            tasks = tasks.filter(task => {
+              return tags.some(tag => task.tags.includes(tag));
+            });
+          }
+          
+          // 应用排序
+          tasks.sort((a, b) => {
+            if (sortBy === 'dueDate') {
+              // 将没有截止日期的任务排在最后
+              if (!a.dueDate) return 1;
+              if (!b.dueDate) return -1;
+              return new Date(a.dueDate) - new Date(b.dueDate);
+            } else if (sortBy === 'priority') {
+              const priorityMap = { high: 0, medium: 1, low: 2 };
+              return priorityMap[a.priority] - priorityMap[b.priority];
+            }
+            // 默认按创建时间
+            return new Date(a.createdAt) - new Date(b.createdAt);
+          });
+          
+          // 应用限制
+          tasks = tasks.slice(0, limit);
+          
+          console.log(`查询任务，找到 ${tasks.length} 个匹配项`);
+          
+          return {
+            tasks,
+            total: tasks.length,
+            filters: { status, priority, tags },
+            sorting: sortBy
+          };
+        },
+        
+        // 删除任务
+        deleteTask: async (params) => {
+          const { taskId } = params;
+          
+          if (!taskId) {
+            throw new Error('必须提供任务ID');
+          }
+          
+          if (!taskStore.tasks[taskId]) {
+            throw new Error(`任务 ${taskId} 不存在`);
+          }
+          
+          // 删除任务
+          const task = taskStore.tasks[taskId];
+          delete taskStore.tasks[taskId];
+          
+          console.log(`删除任务: ${taskId}`);
+          
+          return {
+            success: true,
+            deletedTask: task
+          };
+        }
+      };
+  
+  functions:
+    - name: createTask
+      description: "创建新任务"
+      parameters:
+        type: object
+        properties:
+          title:
+            type: string
+            description: "任务标题"
+          description:
+            type: string
+            description: "任务详细描述"
+          dueDate:
+            type: string
+            format: date-time
+            description: "任务截止日期（ISO 格式）"
+          priority:
+            type: string
+            enum: [high, medium, low]
+            description: "任务优先级，默认为medium"
+          tags:
+            type: array
+            items:
+              type: string
+            description: "任务标签列表"
+        required: [title]
+        
+    - name: updateTaskStatus
+      description: "更新任务状态"
+      parameters:
+        type: object
+        properties:
+          taskId:
+            type: string
+            description: "任务ID"
+          status:
+            type: string
+            enum: [pending, in-progress, completed, cancelled]
+            description: "新的任务状态"
+        required: [taskId, status]
+        
+    - name: getTasks
+      description: "查询任务列表"
+      parameters:
+        type: object
+        properties:
+          status:
+            type: string
+            enum: [pending, in-progress, completed, cancelled]
+            description: "按状态筛选"
+          priority:
+            type: string
+            enum: [high, medium, low]
+            description: "按优先级筛选"
+          tags:
+            type: array
+            items:
+              type: string
+            description: "按标签筛选"
+          sortBy:
+            type: string
+            enum: [createdAt, dueDate, priority]
+            description: "排序字段，默认为createdAt"
+          limit:
+            type: number
+            description: "结果数量限制，默认为10"
+        
+    - name: deleteTask
+      description: "删除任务"
+      parameters:
+        type: object
+        properties:
+          taskId:
+            type: string
+            description: "要删除的任务ID"
+        required: [taskId]
+  
+  security:
+    permissionLevel: medium
+    rateLimit:
+      maxRequests: 100
+      window: 60  # 1分钟内最多100次请求
+  
+  monitoring:
+    logging: true
+    metrics: true 

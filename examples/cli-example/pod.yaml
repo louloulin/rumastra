@@ -1,0 +1,37 @@
+apiVersion: mastra.ai/v1
+kind: MastraPod
+metadata:
+  name: customer-support-system
+  namespace: default
+spec:
+  providers:
+    openai:
+      apiKey: ${env.OPENAI_API_KEY}
+  memory:
+    type: sqlite
+    config:
+      path: "./memory.db"
+  resources:
+    # 内联定义迎宾代理
+    - apiVersion: mastra.ai/v1
+      kind: Agent
+      metadata:
+        name: greeter
+        namespace: default
+      spec:
+        instructions: "你是迎宾智能体，负责初步了解客户问题，引导客户提供关键信息。你需要确定客户问题的类型（技术、账单、一般咨询等），并收集解决问题所需的基本信息。保持友好、专业的态度。"
+        model:
+          provider: openai
+          name: gpt-4o
+    
+    # 加载其他代理
+    - directory: "./resources/agents"
+    
+    # 加载工具
+    - directory: "./resources/tools"
+    
+    # 加载工作流
+    - pattern: "./resources/workflows/*.yaml"
+    
+    # 加载网络
+    - file: "./resources/networks/customer-support.yaml" 

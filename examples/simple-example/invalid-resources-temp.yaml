@@ -1,0 +1,73 @@
+
+# 无效的 DataSource 示例
+kind: DataSource
+apiVersion: mastra.ai/v1
+metadata:
+  name: invalid-postgres-1
+  namespace: default
+spec:
+  type: postgres
+  # 缺少必填字段 url
+  credentials:
+    username: admin
+    # 密码太短
+    password: abc
+
+---
+# 无效的 DataSource 示例 - 不支持的类型
+kind: DataSource
+apiVersion: mastra.ai/v1
+metadata:
+  name: invalid-postgres-2
+  namespace: default
+spec:
+  # 不在枚举值中的类型
+  type: oracle
+  url: oracle://localhost:1521/orcl
+  credentials:
+    username: admin
+    password: password123
+    
+---
+# 无效的 Tool 示例
+kind: Tool
+apiVersion: mastra.ai/v1
+metadata:
+  name: invalid-tool
+  namespace: default
+spec:
+  id: invalid-tool
+  type: api
+  description: "无效的工具示例"
+  # 缺少 execute 字段
+
+---
+# URL 格式错误的示例
+kind: DataSource
+apiVersion: mastra.ai/v1
+metadata:
+  name: invalid-url
+  namespace: default
+spec:
+  type: postgres
+  # 这不是有效的 URI
+  url: not-a-valid-url
+  credentials:
+    username: admin
+    password: secure_password
+
+---
+# 多种错误组合的示例
+kind: DataSource
+apiVersion: mastra.ai/v1
+metadata:
+  name: multiple-errors
+  namespace: default
+spec:
+  type: postgres
+  url: postgres://localhost/db
+  credentials:
+    # 缺少 username
+    password: pwd
+  # 额外的未知属性
+  unknown_field: "不应该出现的字段"

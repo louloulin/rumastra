@@ -1,0 +1,63 @@
+# 工具资源
+apiVersion: mastra/v1
+kind: Tool
+metadata:
+  name: greeter-tool
+  namespace: default
+spec:
+  id: greeter-tool
+  name: "Greeting Tool"
+  description: "一个生成问候语的工具"
+  type: function
+  execute: |
+    function greet(params) {
+      const name = params.name || 'World';
+      return { greeting: `Hello, ${name}!` };
+    }
+
+---
+# 代理资源
+apiVersion: mastra/v1
+kind: Agent
+metadata:
+  name: greeter-agent
+  namespace: default
+spec:
+  id: greeter-agent
+  name: "Greeting Agent"
+  description: "一个创建个性化问候的代理"
+  instructions: "生成友好的问候消息"
+  model:
+    provider: default
+    name: mock
+  tools:
+    greeter-tool: greeter-tool
+
+---
+# 工作流资源
+apiVersion: mastra/v1
+kind: Workflow
+metadata:
+  name: greet-workflow
+  namespace: default
+spec:
+  id: greet-workflow
+  name: "Greeting Workflow"
+  description: "一个生成问候的工作流"
+  initialStep: generate-greeting
+  steps:
+    - id: generate-greeting
+      name: "Generate Greeting"
+      agent: greeter-agent
+      input:
+        message: "Generate a greeting"
+        name: "{{ workflow.input.name }}"
+      next: format-result
+    
+    - id: format-result
+      name: "Format Result"
+      agent: greeter-agent
+      input:
+        message: "Format the greeting nicely"
+        data: "{{ step.generate-greeting.result }}"
+      next: END 

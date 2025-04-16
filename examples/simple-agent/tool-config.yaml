@@ -1,0 +1,40 @@
+apiVersion: mastra/v1
+kind: Tool
+metadata:
+  name: calculator
+  namespace: default
+spec:
+  id: calculator
+  description: "执行基本的数学运算，包括加法、减法、乘法和除法。"
+  parameters:
+    type: object
+    properties:
+      operation:
+        type: string
+        description: "要执行的操作: 'add'(加法), 'subtract'(减法), 'multiply'(乘法), 'divide'(除法)"
+        enum: ["add", "subtract", "multiply", "divide"]
+      a:
+        type: number
+        description: "第一个数字"
+      b:
+        type: number
+        description: "第二个数字"
+    required: ["operation", "a", "b"]
+  execute: "./calculator.js"
+---
+apiVersion: mastra/v1
+kind: Tool
+metadata:
+  name: search
+  namespace: default
+spec:
+  id: search
+  description: "搜索工具，能够查找关于天气、人工智能和编程的信息。"
+  parameters:
+    type: object
+    properties:
+      query:
+        type: string
+        description: "搜索查询字符串"
+    required: ["query"]
+  execute: "./search.js" 

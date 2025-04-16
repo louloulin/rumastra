@@ -1,0 +1,106 @@
+kind: MastraPod
+apiVersion: mastra.ai/v1
+metadata:
+  name: simple-example
+  namespace: default
+  
+resources:
+  # 自定义资源定义
+  - kind: CustomResourceDefinition
+    apiVersion: mastra.ai/v1
+    metadata:
+      name: datasources.mastra.ai
+    spec:
+      group: mastra.ai
+      names:
+        kind: DataSource
+        plural: datasources
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["type", "url", "credentials"]
+              properties:
+                type:
+                  type: string
+                  enum: ["postgres", "mysql", "mongodb", "redis"]
+                url:
+                  type: string
+                  format: uri
+                credentials:
+                  type: object
+                  required: ["username", "password"]
+                  properties:
+                    username:
+                      type: string
+                    password:
+                      type: string
+                      minLength: 4
+                options:
+                  type: object
+                  additionalProperties: true
+                  
+  # 工具资源
+  - kind: Tool
+    apiVersion: mastra.ai/v1
+    metadata:
+      name: weather-tool
+      namespace: default
+    spec:
+      id: weather-tool
+      type: api
+      description: "获取天气信息的工具"
+      endpoint: "https://api.weather.example.com"
+      execute: "./tools/weather.js"
+      auth:
+        type: apiKey
+        header: "x-api-key"
+        
+  - kind: Tool
+    apiVersion: mastra.ai/v1
+    metadata:
+      name: database-tool
+      namespace: default
+    spec:
+      id: database-tool
+      type: database
+      description: "数据库查询工具"
+      source: "./tools/database.js"
+      execute: "./tools/database.js"
+      
+  # 工作流资源
+  - kind: Workflow
+    apiVersion: mastra.ai/v1
+    metadata:
+      name: simple-workflow
+      namespace: default
+    spec:
+      id: simple-workflow
+      name: "简单工作流"
+      description: "一个简单的工作流示例"
+      initialStep: "start"
+      steps:
+        - id: "start"
+          type: "tool"
+          tool: "default/weather-tool"
+          next: "end"
+        - id: "end"
+          type: "output"
+  
+  # 自定义资源实例
+  - kind: DataSource
+    apiVersion: mastra.ai/v1
+    metadata:
+      name: main-postgres
+      namespace: default
+    spec:
+      type: postgres
+      url: postgresql://localhost:5432/mydb
+      credentials:
+        username: admin
+        password: secure_password
+      options:
+        poolSize: 10
+        ssl: true 

@@ -1,0 +1,13 @@
+{
+  "name": "quick-pod",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "demo": "node direct-demo.js"
+  },
+  "dependencies": {
+    "@mastra/runtimes": "file:../../mastra-runtimes-0.1.0.tgz",
+    "js-yaml": "^4.1.0"
+  }
+} 

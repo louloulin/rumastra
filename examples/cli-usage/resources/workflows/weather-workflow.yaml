@@ -1,0 +1,52 @@
+kind: Workflow
+apiVersion: v1
+metadata:
+  name: weather-workflow
+  namespace: default
+spec:
+  description: 天气查询工作流
+  steps:
+    validateInput:
+      type: condition
+      condition: "!!input.location"
+      onTrue: processWeatherRequest
+      onFalse: handleMissingLocation
+    
+    handleMissingLocation:
+      type: function
+      function: |
+        return {
+          error: true,
+          message: "请提供有效的地点名称，例如'北京'、'上海'等。"
+        }
+      next: end
+    
+    processWeatherRequest:
+      type: agent
+      agentId: weather-agent
+      input:
+        location: "{{input.location}}"
+        additionalInfo: "{{input.additionalInfo || false}}"
+      next: formatResponse
+    
+    formatResponse:
+      type: function
+      function: |
+        const result = input.processWeatherRequest;
+        return {
+          query: input.location,
+          weatherInfo: result,
+          timestamp: new Date().toISOString()
+        }
+      next: end
+    
+  input:
+    type: object
+    properties:
+      location:
+        type: string
+        description: 查询的地点名称
+      additionalInfo:
+        type: boolean
+        description: 是否需要额外的天气相关建议
+    required: ["location"] 

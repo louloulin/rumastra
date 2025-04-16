@@ -1,0 +1,151 @@
+apiVersion: mastra.ai/v1
+kind: Tool
+metadata:
+  name: example-tool
+  namespace: default
+  labels:
+    app: demo
+    type: utility
+  annotations:
+    description: "一个简单的工具资源示例"
+    creator: "mastrapod-cli"
+spec:
+  description: "这个工具提供实用功能，如获取天气信息、计算数学表达式等"
+  type: function
+  implementation:
+    language: javascript
+    code: |
+      /**
+       * 示例工具 - 提供多种实用功能
+       */
+      module.exports = {
+        // 获取天气信息
+        getWeather: async (params) => {
+          const { location, unit = 'celsius' } = params;
+          
+          if (!location) {
+            throw new Error('必须提供位置参数');
+          }
+          
+          // 在实际实现中，这里会调用天气API
+          // 示例中返回模拟数据
+          console.log(`查询${location}的天气信息`);
+          
+          // 模拟API延迟
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          return {
+            location,
+            temperature: unit === 'celsius' ? 23 : 73.4,
+            unit,
+            condition: '晴天',
+            humidity: 65,
+            windSpeed: '5km/h',
+            forecast: [
+              { day: '今天', high: 25, low: 18, condition: '晴天' },
+              { day: '明天', high: 28, low: 20, condition: '多云' },
+              { day: '后天', high: 22, low: 17, condition: '小雨' }
+            ]
+          };
+        },
+        
+        // 计算数学表达式
+        calculate: async (params) => {
+          const { expression } = params;
+          
+          if (!expression) {
+            throw new Error('必须提供表达式参数');
+          }
+          
+          console.log(`计算表达式: ${expression}`);
+          
+          // 安全地计算表达式
+          // 注意：在实际应用中应当使用更安全的方法
+          try {
+            // 简单的安全处理
+            if (/[^0-9+\-*/().\s]/.test(expression)) {
+              throw new Error('表达式包含不安全的字符');
+            }
+            
+            const result = eval(expression);
+            return { expression, result };
+          } catch (error) {
+            return { expression, error: '无法计算表达式' };
+          }
+        },
+        
+        // 生成随机数
+        random: async (params) => {
+          const { min = 1, max = 100, count = 1 } = params;
+          
+          if (min >= max) {
+            throw new Error('最小值必须小于最大值');
+          }
+          
+          if (count < 1 || count > 100) {
+            throw new Error('生成数量必须在1到100之间');
+          }
+          
+          console.log(`生成${count}个范围在${min}到${max}之间的随机数`);
+          
+          const numbers = [];
+          for (let i = 0; i < count; i++) {
+            numbers.push(Math.floor(Math.random() * (max - min + 1)) + min);
+          }
+          
+          return {
+            parameters: { min, max, count },
+            numbers
+          };
+        }
+      };
+  
+  functions:
+    - name: getWeather
+      description: "获取指定位置的天气信息"
+      parameters:
+        type: object
+        properties:
+          location:
+            type: string
+            description: "位置名称，如城市名"
+          unit:
+            type: string
+            enum: [celsius, fahrenheit]
+            description: "温度单位，默认为摄氏度"
+        required: [location]
+        
+    - name: calculate
+      description: "计算数学表达式"
+      parameters:
+        type: object
+        properties:
+          expression:
+            type: string
+            description: "要计算的数学表达式，如'(5+3)*2'"
+        required: [expression]
+        
+    - name: random
+      description: "生成随机数"
+      parameters:
+        type: object
+        properties:
+          min:
+            type: number
+            description: "最小值，默认为1"
+          max:
+            type: number
+            description: "最大值，默认为100"
+          count:
+            type: number
+            description: "要生成的随机数数量，默认为1"
+  
+  security:
+    permissionLevel: medium
+    rateLimit:
+      maxRequests: 100
+      window: 60  # 1分钟内最多100次请求
+  
+  monitoring:
+    logging: true
+    metrics: true 

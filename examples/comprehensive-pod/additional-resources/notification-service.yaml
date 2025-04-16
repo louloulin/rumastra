@@ -1,0 +1,100 @@
+# 通知服务资源定义
+# 此资源提供了一个用于发送各种类型通知的服务
+
+apiVersion: mastra/v1
+kind: Tool
+metadata:
+  name: notification-tool
+spec:
+  id: notification
+  description: "发送各种类型的通知，包括电子邮件、短信和应用内通知"
+  execute: "additional-resources/notification.js"
+  parameters:
+    type: object
+    required: ["type", "recipient", "content"]
+    properties:
+      type:
+        type: string
+        enum: ["email", "sms", "in-app", "webhook"]
+        description: "通知类型"
+      recipient:
+        type: string
+        description: "接收者（邮箱地址、手机号码或用户ID）"
+      content:
+        type: object
+        required: ["subject", "body"]
+        properties:
+          subject:
+            type: string
+            description: "通知主题"
+          body:
+            type: string
+            description: "通知内容"
+      priority:
+        type: string
+        enum: ["low", "normal", "high", "urgent"]
+        default: "normal"
+        description: "通知优先级"
+      scheduling:
+        type: object
+        properties:
+          sendAt:
+            type: string
+            format: date-time
+            description: "定时发送的时间（ISO 8601格式）"
+          repeat:
+            type: string
+            enum: ["none", "daily", "weekly", "monthly"]
+            default: "none"
+            description: "重复发送设置"
+
+---
+# 通知代理 - 负责发送和管理通知
+apiVersion: mastra/v1
+kind: Agent
+metadata:
+  name: notification-agent
+spec:
+  name: "通知管理专家"
+  instructions: "你是通知管理专家，能够创建、发送和跟踪各种通知，确保通知内容准确且格式适合相应的渠道。"
+  model:
+    provider: openai
+    name: gpt-4
+  tools:
+    - notification-tool
+    - database-query-tool
+
+---
+# 通知工作流 - 用于定期报告和提醒
+apiVersion: mastra/v1
+kind: Workflow
+metadata:
+  name: weekly-report-notification
+spec:
+  name: "周报通知工作流"
+  description: "每周报告通知工作流，生成并发送周报"
+  initialStep: gather-weekly-data
+  steps:
+    - id: gather-weekly-data
+      name: "收集周报数据"
+      agent: data-analyst-agent
+      input:
+        query: "查询并汇总本周的关键业务指标"
+      next: generate-report
+    
+    - id: generate-report
+      name: "生成报告"
+      agent: summarizer-agent
+      input:
+        content: "${steps.gather-weekly-data.output}"
+        format: "weekly-report"
+      next: send-notification
+    
+    - id: send-notification
+      name: "发送通知"
+      agent: notification-agent
+      input:
+        task: "通过邮件发送周报"
+        data: "${steps.generate-report.output}"
+        recipients: "team@example.com"
+      next: END 

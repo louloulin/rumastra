@@ -1,0 +1,319 @@
+# 客户支持专家系统
+# 这个系统由多个专业代理组成，每个代理负责处理一种类型的客户问题
+# 包含工具、代理、工作流和网络
+
+# 工具定义
+---
+apiVersion: mastra.ai/v1
+kind: Tool
+metadata:
+  name: database-query
+  namespace: support
+  labels:
+    type: database
+    tier: backend
+spec:
+  id: database-query
+  description: "查询客户信息数据库"
+  inputSchema:
+    type: object
+    properties:
+      customerId:
+        type: string
+        description: "客户ID"
+      query:
+        type: string
+        description: "查询内容"
+    required: ["query"]
+  outputSchema:
+    type: object
+    properties:
+      result:
+        type: object
+        description: "查询结果"
+      error:
+        type: string
+        description: "错误信息"
+  execute: "./tools/database-query.js"
+
+---
+apiVersion: mastra.ai/v1
+kind: Tool
+metadata:
+  name: ticket-creator
+  namespace: support
+  labels:
+    type: ticketing
+    tier: backend
+spec:
+  id: ticket-creator
+  description: "创建支持工单"
+  inputSchema:
+    type: object
+    properties:
+      customerId:
+        type: string
+        description: "客户ID"
+      issue:
+        type: string
+        description: "问题描述"
+      priority:
+        type: string
+        enum: ["low", "medium", "high", "critical"]
+        description: "优先级"
+    required: ["customerId", "issue"]
+  outputSchema:
+    type: object
+    properties:
+      ticketId:
+        type: string
+        description: "工单ID"
+      status:
+        type: string
+        description: "工单状态"
+  execute: "./tools/ticket-creator.js"
+
+---
+apiVersion: mastra.ai/v1
+kind: Tool
+metadata:
+  name: knowledge-search
+  namespace: support
+  labels:
+    type: knowledge
+    tier: backend
+spec:
+  id: knowledge-search
+  description: "搜索知识库"
+  inputSchema:
+    type: object
+    properties:
+      query:
+        type: string
+        description: "搜索关键词"
+      limit:
+        type: number
+        description: "结果数量限制"
+    required: ["query"]
+  outputSchema:
+    type: object
+    properties:
+      results:
+        type: array
+        items:
+          type: object
+          properties:
+            title:
+              type: string
+            content:
+              type: string
+            url:
+              type: string
+  execute: "./tools/knowledge-search.js"
+
+# 代理定义
+---
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: greeter-agent
+  namespace: support
+  labels:
+    role: greeter
+    tier: frontend
+spec:
+  name: "欢迎代理"
+  instructions: "你是客户支持团队的欢迎代理。你的任务是友好地迎接客户，获取他们的基本信息，并了解他们需要什么样的帮助。不要尝试解决复杂问题，而是将客户引导到适当的专业代理那里。"
+  model:
+    provider: openai
+    name: gpt-4-turbo
+  memory:
+    enabled: true
+    type: vector
+    config:
+      ttl: 3600
+
+---
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: technical-agent
+  namespace: support
+  labels:
+    role: technical
+    tier: support
+spec:
+  name: "技术支持代理"
+  instructions: "你是一名技术支持专家。你的任务是解决客户的技术问题，提供清晰的步骤和解决方案。如果问题太复杂，创建支持工单并将其升级。使用知识库查找信息，确保回答准确。"
+  model:
+    provider: anthropic
+    name: claude-3-opus
+  tools:
+    database: support.database-query
+    ticket: support.ticket-creator
+    knowledge: support.knowledge-search
+  memory:
+    enabled: true
+    type: vector
+    config:
+      ttl: 7200
+
+---
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: billing-agent
+  namespace: support
+  labels:
+    role: billing
+    tier: support
+spec:
+  name: "账单代理"
+  instructions: "你是一名账单和支付专家。你的任务是帮助客户解决与账单、发票、订阅、退款和支付方式相关的问题。使用数据库工具查询客户的账单信息，如有必要创建工单。"
+  model:
+    provider: openai
+    name: gpt-4-turbo
+  tools:
+    database: support.database-query
+    ticket: support.ticket-creator
+  memory:
+    enabled: true
+    type: vector
+    config:
+      ttl: 7200
+
+---
+apiVersion: mastra.ai/v1
+kind: Agent
+metadata:
+  name: router-agent
+  namespace: support
+  labels:
+    role: router
+    tier: system
+spec:
+  name: "路由代理"
+  instructions: "你是客户支持系统的路由器。你的任务是分析客户的问题，并决定将其路由到哪个专业代理：欢迎代理、技术支持代理或账单代理。根据问题的性质做出明智的决定。"
+  model:
+    provider: openai
+    name: gpt-4o
+  memory:
+    enabled: false
+
+# 工作流定义
+---
+apiVersion: mastra.ai/v1
+kind: Workflow
+metadata:
+  name: customer-onboarding
+  namespace: support
+  labels:
+    type: onboarding
+    tier: process
+spec:
+  name: "客户入职流程"
+  description: "新客户入职流程，包括欢迎、信息收集和问题分类"
+  initialStep: welcome
+  steps:
+    - id: welcome
+      name: "欢迎客户"
+      agent: support.greeter-agent
+      input:
+        message: "欢迎来到我们的客户支持系统。我叫${agent.name}，很高兴为您服务。请告诉我您的姓名和您需要帮助的内容。"
+      output:
+        customerInfo: text
+      next: collect-info
+    
+    - id: collect-info
+      name: "收集信息"
+      agent: support.greeter-agent
+      input:
+        message: "感谢您提供的信息。为了更好地帮助您，我能否请您提供您的账户ID或电子邮件地址？以及您遇到的问题是与技术支持还是账单相关？"
+        customerInfo: $customerInfo
+      output:
+        accountInfo: text
+        issueType: text
+      next: route-to-expert
+    
+    - id: route-to-expert
+      name: "路由到专家"
+      agent: support.router-agent
+      input:
+        message: "请根据以下客户信息决定将其路由到哪个专业代理。\n客户信息: ${accountInfo}\n问题类型: ${issueType}"
+        customerInfo: $customerInfo
+        accountInfo: $accountInfo
+        issueType: $issueType
+      output:
+        routeDecision: text
+      next: BRANCH["technical", "billing", "general"]
+    
+    - id: technical
+      name: "技术支持"
+      agent: support.technical-agent
+      input:
+        message: "您好，我是技术支持专员。我了解到您有以下问题:\n${issueType}\n\n我会尽力帮助您解决。请告诉我更多关于您问题的详细信息。"
+        customerInfo: $customerInfo
+        accountInfo: $accountInfo
+      output:
+        resolution: text
+      next: conclusion
+    
+    - id: billing
+      name: "账单支持"
+      agent: support.billing-agent
+      input:
+        message: "您好，我是账单和支付专员。我了解到您有以下问题:\n${issueType}\n\n我会帮助您解决账单相关问题。请提供更多关于您账单问题的详情。"
+        customerInfo: $customerInfo
+        accountInfo: $accountInfo
+      output:
+        resolution: text
+      next: conclusion
+    
+    - id: general
+      name: "一般支持"
+      agent: support.greeter-agent
+      input:
+        message: "感谢您提供的信息。看起来您的问题比较一般性。我会尽力帮助您，或者在需要时将您引导至适当的部门。请告诉我更多关于您需要的帮助。"
+        customerInfo: $customerInfo
+        accountInfo: $accountInfo
+      output:
+        resolution: text
+      next: conclusion
+    
+    - id: conclusion
+      name: "总结"
+      agent: support.greeter-agent
+      input:
+        message: "感谢您使用我们的客户支持系统。我们已经记录了以下解决方案:\n${resolution}\n\n您还有其他需要帮助的问题吗？"
+        resolution: $resolution
+      output:
+        finalResponse: text
+      next: END
+
+# 网络定义
+---
+apiVersion: mastra.ai/v1
+kind: Network
+metadata:
+  name: support-network
+  namespace: support
+  labels:
+    type: support
+    tier: system
+spec:
+  instructions: "这是一个客户支持网络，由欢迎代理、技术支持代理和账单代理组成。网络负责处理客户查询，并根据问题类型动态调用适当的代理。"
+  agents:
+    - name: greeter
+      ref: support.greeter-agent
+    - name: technical
+      ref: support.technical-agent
+    - name: billing
+      ref: support.billing-agent
+  router:
+    model:
+      provider: openai
+      name: gpt-4o
+    maxSteps: 10
+  state:
+    persistence: true
+    ttl: 3600 

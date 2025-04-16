@@ -1,0 +1,1 @@
+阅读整个代码，分析存在的问题，重点关注多llm provider的集成，mastra 底层的llm使用的是 vercel-ai    @Web    搜索相关资料，适配更多的llm，优先实现qwen ，qwen需要安装qwen-ai-provider库，写入代码

@@ -1,0 +1,65 @@
+kind: CustomResourceDefinition
+apiVersion: mastra.ai/v1
+metadata:
+  name: tools.mastra.ai
+spec:
+  group: mastra.ai
+  names:
+    kind: Tool
+    plural: tools
+  validation:
+    openAPIV3Schema:
+      type: object
+      properties:
+        spec:
+          type: object
+          required: ["id", "type", "execute"]
+          properties:
+            id:
+              type: string
+              description: "工具的唯一标识符"
+            type:
+              type: string
+              enum: ["api", "function", "database", "webhook", "http"]
+              description: "工具的类型"
+            description:
+              type: string
+              description: "工具的描述文本"
+            execute:
+              type: string
+              description: "工具执行路径或函数名"
+            endpoint:
+              type: string
+              format: uri
+              description: "API工具的端点URL"
+            auth:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: ["none", "basic", "apiKey", "bearer", "oauth2"]
+                header:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+                token:
+                  type: string
+            parameters:
+              type: array
+              items:
+                type: object
+                required: ["name", "type"]
+                properties:
+                  name:
+                    type: string
+                  type:
+                    type: string
+                    enum: ["string", "number", "boolean", "object", "array"]
+                  description:
+                    type: string
+                  required:
+                    type: boolean
+                  default:
+                    type: ["string", "number", "boolean", "object", "array", "null"] 

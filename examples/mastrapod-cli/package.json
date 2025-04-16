@@ -1,0 +1,50 @@
+{
+  "name": "mastrapod-cli",
+  "version": "1.0.0",
+  "description": "MastraPod CLI - 类似kubectl的命令行工具管理Mastra资源",
+  "main": "mastrapod.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node mastrapod.js",
+    "apply-agent": "node mastrapod.js apply -f example-agent.yaml",
+    "apply-workflow": "node mastrapod.js apply -f example-workflow.yaml",
+    "apply-network": "node mastrapod.js apply -f example-network.yaml",
+    "apply-tool": "node mastrapod.js apply -f example-tool.yaml",
+    "get-agents": "node mastrapod.js get agents",
+    "get-workflows": "node mastrapod.js get workflows",
+    "get-networks": "node mastrapod.js get networks",
+    "get-tools": "node mastrapod.js get tools",
+    "describe-agent": "node mastrapod.js describe agent example-agent",
+    "describe-tool": "node mastrapod.js describe tool example-tool",
+    "run-agent": "node mastrapod.js run agent example-agent -i \"什么是人工智能？\"",
+    "run-workflow": "node mastrapod.js run workflow example-workflow -p '{\"query\":\"人工智能的应用场景\", \"context\":\"教育领域\"}'",
+    "run-tool": "node mastrapod.js tool example-tool getWeather -p '{\"location\":\"北京\"}'",
+    "calc": "node mastrapod.js tool example-tool calculate -p '{\"expression\":\"(5+3)*2\"}'",
+    "random": "node mastrapod.js tool example-tool random -p '{\"min\":1,\"max\":100,\"count\":5\"}'",
+    "history": "node mastrapod.js history --limit 5"
+  },
+  "bin": {
+    "mastrapod": "./mastrapod.js"
+  },
+  "keywords": [
+    "mastra",
+    "mastrapod",
+    "cli",
+    "agent",
+    "workflow",
+    "tool"
+  ],
+  "author": "Lin Chong",
+  "license": "MIT",
+  "dependencies": {
+    "@mastra/runtimes": "file:/Users/louloulin/Documents/linchong/agent/mastra/packages/runtimes/mastra-runtimes-0.1.0.tgz",
+    "chalk": "^4.1.2",
+    "commander": "^12.0.0",
+    "js-yaml": "^4.1.0",
+    "table": "^6.8.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0"
+  }
+}

@@ -1,0 +1,111 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: example-pod
+  namespace: default
+
+# 全局提供者配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+  anthropic:
+    apiKey: ${env.ANTHROPIC_API_KEY}
+  qwen:
+    apiKey: ${env.QWEN_API_KEY}
+    baseURL: ${env.QWEN_API_BASE_URL}
+
+# 全局内存配置
+memory:
+  type: ephemeral
+  config:
+    ttl: 3600
+
+# 日志配置
+logging:
+  level: info
+  format: json
+
+# 资源引用
+resources:
+  # 内联定义
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: simple-agent
+    spec:
+      name: SimpleAgent
+      instructions: "A simple helpful agent"
+      model:
+        provider: openai
+        name: gpt-4
+  
+  # Qwen代理 - 通义千问智能体
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: qwen-agent
+      namespace: default
+    spec:
+      name: QwenAgent
+      instructions: |
+        你是一个基于阿里通义千问开发的智能助手，擅长回答问题和提供帮助。
+        请用简洁、专业的中文回答用户的问题。
+      model:
+        provider: qwen
+        name: qwen-max
+      tools:
+        weather: weather-tool
+  
+  # 从文件引用
+  - file: ./agents/weather-agent.yaml
+  
+  # 工具定义
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: weather-tool
+    spec:
+      id: weather
+      description: "Gets the current weather for a location"
+      execute: "./tools/weather.js"
+  
+  # 工作流定义
+  - apiVersion: mastra/v1
+    kind: Workflow
+    metadata:
+      name: weather-workflow
+    spec:
+      name: WeatherWorkflow
+      description: "A workflow that gets the weather and generates a recommendation"
+      initialStep: get-location
+      steps:
+        - id: get-location
+          name: Get Location
+          agent: simple-agent
+          next: get-weather
+        - id: get-weather
+          name: Get Weather
+          agent: weather-agent
+          next: generate-recommendation
+        - id: generate-recommendation
+          name: Generate Recommendation
+          agent: simple-agent
+  
+  # Qwen工作流
+  - apiVersion: mastra/v1
+    kind: Workflow
+    metadata:
+      name: qwen-workflow
+    spec:
+      name: QwenWorkflow
+      description: "A workflow that uses Qwen to provide weather recommendations"
+      initialStep: get-location-qwen
+      steps:
+        - id: get-location-qwen
+          name: Get Location
+          agent: qwen-agent
+          next: generate-qwen-recommendation
+        - id: generate-qwen-recommendation
+          name: Generate Recommendation
+          agent: qwen-agent
+          next: END 

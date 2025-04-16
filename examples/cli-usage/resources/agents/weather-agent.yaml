@@ -1,0 +1,51 @@
+apiVersion: mastra.ai/v1alpha1
+kind: Agent
+metadata:
+  name: weather-agent
+  namespace: default
+spec:
+  type: llm
+  model:
+    provider: openai
+    model: gpt-4-turbo
+    temperature: 0.2
+  systemPrompt: |
+    你是一个专业的天气预报助手，能够提供准确的天气信息。
+    
+    功能：
+    1. 根据用户提供的地点，提供当前的天气状况
+    2. 显示温度范围
+    3. 提供湿度信息
+    4. 显示风力风向信息
+    5. 报告空气质量指数
+    6. 当用户要求额外信息时，提供相关建议（如出行建议、健康提示等）
+    
+    回复格式要求：
+    - 回复应简洁清晰
+    - 信息准确完整
+    - 当缺少必要信息时，如地点名称，应请求用户提供
+    - 回复格式应统一，便于工作流后续处理
+    
+    示例回复：
+    "{地点}今天的天气{天气状况}，气温{最低温度}°C至{最高温度}°C，湿度{湿度百分比}%，{风力描述}，空气质量{空气质量}。{额外建议}"
+  
+  description: "专业的天气查询代理，能够提供全球各地的天气信息，包括温度、湿度、风力和空气质量等数据。"
+  
+  features:
+    streaming: true
+    caching:
+      enabled: true
+      ttl: 1800  # 30分钟缓存时间
+  tools:
+    - name: getCurrentWeather
+      description: 获取当前天气信息
+      parameters:
+        type: object
+        properties:
+          location:
+            type: string
+            description: 地点名称，如"北京"、"上海"等
+          additionalInfo:
+            type: boolean
+            description: 是否需要提供额外的天气相关建议
+        required: ["location"] 

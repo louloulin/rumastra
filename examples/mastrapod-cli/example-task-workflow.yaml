@@ -1,0 +1,148 @@
+apiVersion: mastra.ai/v1
+kind: Workflow
+metadata:
+  name: task-processing-workflow
+  namespace: default
+  labels:
+    app: productivity
+    type: management
+  annotations:
+    description: "任务处理工作流 - 创建、分析并执行任务"
+    creator: "mastrapod-cli"
+spec:
+  description: "这个工作流接收任务信息，创建任务，评估优先级，并生成执行计划"
+  steps:
+    - name: create-task
+      type: function
+      config:
+        description: "创建新任务"
+        tool: task-manager
+        function: createTask
+        inputs:
+          - name: title
+            source: workflow.inputs.title
+          - name: description
+            source: workflow.inputs.description
+          - name: dueDate
+            source: workflow.inputs.dueDate
+          - name: priority
+            source: workflow.inputs.priority
+          - name: tags
+            source: workflow.inputs.tags
+        outputs:
+          - name: taskInfo
+            type: object
+            description: "创建的任务信息"
+      
+    - name: analyze-task
+      type: agent
+      dependsOn: [create-task]
+      config:
+        agent: task-assistant
+        systemPrompt: |
+          你是一个任务分析专家。
+          分析提供的任务信息，并提供以下内容：
+          1. 任务复杂度评估（低、中、高）
+          2. 预计完成时间
+          3. 潜在的依赖项和风险
+          4. 建议的执行方法
+        inputs:
+          - name: task
+            source: steps.create-task.outputs.taskInfo
+        outputs:
+          - name: analysis
+            type: object
+            description: "任务分析结果"
+    
+    - name: generate-plan
+      type: agent
+      dependsOn: [analyze-task]
+      config:
+        agent: task-assistant
+        systemPrompt: |
+          你是一个计划制定专家。
+          基于任务信息和分析，生成一个详细的执行计划，包括：
+          1. 分解为具体步骤
+          2. 每个步骤的时间估计
+          3. 所需资源
+          4. 成功标准
+          5. 追踪进度的方法
+        inputs:
+          - name: task
+            source: steps.create-task.outputs.taskInfo
+          - name: analysis
+            source: steps.analyze-task.outputs.analysis
+        outputs:
+          - name: executionPlan
+            type: object
+            description: "详细的执行计划"
+    
+    - name: summarize-results
+      type: agent
+      dependsOn: [generate-plan]
+      config:
+        agent: task-assistant
+        systemPrompt: |
+          你是一个沟通专家。
+          创建一个简洁明了的总结，包含以下内容：
+          1. 任务概述
+          2. 关键分析发现
+          3. 执行计划要点
+          4. 后续步骤和建议
+          
+          确保总结简明扼要，易于理解，突出最重要的信息。
+        inputs:
+          - name: task
+            source: steps.create-task.outputs.taskInfo
+          - name: analysis
+            source: steps.analyze-task.outputs.analysis
+          - name: plan
+            source: steps.generate-plan.outputs.executionPlan
+        outputs:
+          - name: summary
+            type: string
+            description: "任务处理的最终总结"
+  
+  inputs:
+    - name: title
+      type: string
+      description: "任务标题"
+      required: true
+    - name: description
+      type: string
+      description: "任务详细描述"
+      required: true
+    - name: dueDate
+      type: string
+      format: date-time
+      description: "任务截止日期（ISO 格式）"
+    - name: priority
+      type: string
+      enum: [high, medium, low]
+      description: "任务优先级"
+      defaultValue: "medium"
+    - name: tags
+      type: array
+      items:
+        type: string
+      description: "任务标签列表"
+  
+  outputs:
+    - name: taskId
+      type: string
+      description: "创建的任务ID"
+      source: steps.create-task.outputs.taskInfo.task.id
+    - name: executionPlan
+      type: object
+      description: "详细的执行计划"
+      source: steps.generate-plan.outputs.executionPlan
+    - name: summary
+      type: string
+      description: "最终处理总结"
+      source: steps.summarize-results.outputs.summary
+  
+  maxRuntime: 300
+  timeout: 600
+  retryPolicy:
+    maxRetries: 1
+    retryInterval: 60 

@@ -1,0 +1,95 @@
+apiVersion: mastra.ai/v1
+kind: Workflow
+metadata:
+  name: example-workflow
+  namespace: default
+  labels:
+    app: demo
+    type: research
+  annotations:
+    description: "一个简单的研究工作流"
+    creator: "mastrapod-cli"
+spec:
+  description: "这个工作流用于收集信息、分析数据并生成研究报告"
+  steps:
+    - name: collect-data
+      type: function
+      config:
+        description: "收集与查询相关的数据"
+        inputs:
+          - name: query
+            type: string
+            description: "研究查询"
+          - name: context
+            type: string
+            description: "研究上下文"
+        outputs:
+          - name: rawData
+            type: object
+            description: "收集到的原始数据"
+      
+    - name: analyze-data
+      type: agent
+      dependsOn: [collect-data]
+      config:
+        model:
+          provider: openai
+          name: gpt-4o
+          temperature: 0.2
+        systemPrompt: |
+          你是一个数据分析专家。
+          分析提供的数据并识别关键趋势和见解。
+        inputs:
+          - name: rawData
+            source: steps.collect-data.outputs.rawData
+            
+        outputs:
+          - name: analysis
+            type: object
+            description: "数据分析结果"
+    
+    - name: generate-report
+      type: agent
+      dependsOn: [analyze-data]
+      config:
+        model:
+          provider: openai
+          name: gpt-4o
+          temperature: 0.5
+        systemPrompt: |
+          你是一个专业的报告撰写者。
+          基于提供的分析生成一份全面的研究报告。
+          报告应包括：概述、方法、发现、结论和建议。
+        inputs:
+          - name: analysis
+            source: steps.analyze-data.outputs.analysis
+          - name: query
+            source: workflow.inputs.query
+          - name: context
+            source: workflow.inputs.context
+        outputs:
+          - name: report
+            type: string
+            description: "最终研究报告"
+  
+  inputs:
+    - name: query
+      type: string
+      description: "研究查询"
+      required: true
+    - name: context
+      type: string
+      description: "研究上下文"
+      required: true
+  
+  outputs:
+    - name: finalReport
+      type: string
+      description: "完整的研究报告"
+      source: steps.generate-report.outputs.report
+  
+  maxRuntime: 600
+  timeout: 900
+  retryPolicy:
+    maxRetries: 2
+    retryInterval: 30 

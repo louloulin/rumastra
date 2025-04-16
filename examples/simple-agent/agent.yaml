@@ -1,0 +1,19 @@
+apiVersion: mastra/v1
+kind: Agent
+metadata:
+  name: assistant-agent
+  namespace: default
+spec:
+  name: AssistantAgent
+  instructions: "你是一个友好的助手，能够回答问题并提供有用的信息。请始终礼貌、简洁地回答。"
+  model:
+    provider: openai
+    name: gpt-4
+  memory:
+    enabled: true
+    type: ephemeral
+    config:
+      ttl: 3600
+  tools:
+    - search
+    - calculator 

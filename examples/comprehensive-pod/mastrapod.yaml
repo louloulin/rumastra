@@ -1,0 +1,206 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: comprehensive-demo
+  namespace: default
+  description: "全功能 MastraPod 示例，展示 Mastra Runtime 所有功能"
+  labels:
+    env: demo
+    purpose: documentation
+    version: "1.0.0"
+
+# 全局配置部分
+# 全局提供商配置
+providers:
+  openai:
+    apiKey: ${env.OPENAI_API_KEY}
+    defaultModel: gpt-4
+  anthropic:
+    apiKey: ${env.ANTHROPIC_API_KEY}
+    defaultModel: claude-3-opus-20240229
+
+# 内存配置
+memory:
+  type: ephemeral
+  config:
+    ttl: 86400
+    namespace: comprehensive-pod
+
+# 日志配置
+logging:
+  level: info
+  format: json
+  config:
+    colors: true
+    timestamp: true
+
+# 资源部分 - 定义所有 AI 应用组件
+resources:
+  # 工具资源定义
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: weather-tool
+    spec:
+      id: weather
+      description: "查询指定城市的天气情况"
+      execute: "tools/weather.js"
+      parameters:
+        type: object
+        required: ["city"]
+        properties:
+          city:
+            type: string
+            description: "城市名称"
+
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: database-query-tool
+    spec:
+      id: query-database
+      description: "执行数据库查询并返回结果"
+      execute: "tools/database.js"
+      parameters:
+        type: object
+        required: ["query"]
+        properties:
+          query:
+            type: string
+            description: "SQL 查询语句"
+          dataSource:
+            type: string
+            description: "数据源名称，默认使用 analytics-db"
+
+  # 条件性工具 - 只有在 ENABLE_CUSTOM_TOOLS=true 时才启用
+  - apiVersion: mastra/v1
+    kind: Tool
+    metadata:
+      name: advanced-analytics-tool
+    spec:
+      id: advanced-analytics
+      description: "执行高级数据分析"
+      execute: "specialized/advanced-analytics.js"
+      parameters:
+        type: object
+        required: ["dataset", "analysisType"]
+        properties:
+          dataset:
+            type: string
+            description: "数据集名称"
+          analysisType:
+            type: string
+            enum: ["regression", "clustering", "classification"]
+            description: "分析类型"
+    when: ${env.ENABLE_CUSTOM_TOOLS}
+
+  # 代理资源定义
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: assistant-agent
+    spec:
+      name: "智能助手"
+      instructions: "你是一个全能的智能助手，能够回答用户问题并使用工具帮助解决问题。你的回答应该简洁、准确、有用。"
+      model:
+        provider: openai
+        name: gpt-4
+        temperature: 0.7
+        maxTokens: 1000
+        systemPrompt: |
+          你是一个全能的 AI 助手，能够回答各种问题并提供有用的信息。
+          请始终保持友好、专业的态度，并尽可能提供准确的信息。
+      tools:
+        weather: weather-tool
+
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: data-analyst-agent
+    spec:
+      name: "数据分析师"
+      instructions: "你是一个专业的数据分析师，可以帮助用户分析数据、查询数据库、生成报告。"
+      model:
+        provider: anthropic
+        name: claude-3-opus-20240229
+        temperature: 0.2
+        maxTokens: 2000
+        systemPrompt: |
+          你是一个专注于逻辑推理的 AI。你擅长解决复杂问题，进行分析和推理。
+          请对问题进行深入分析，一步步思考，并提供详细的解释。
+      tools:
+        query-database: database-query-tool
+
+  - apiVersion: mastra/v1
+    kind: Agent
+    metadata:
+      name: summarizer-agent
+    spec:
+      name: "内容总结专家"
+      instructions: "你是一个专业的内容总结专家，能够将长文本总结为简洁、全面的要点。"
+      model:
+        provider: openai
+        name: gpt-4
+        temperature: 0.5
+        maxTokens: 1500
+        systemPrompt: "你是一个专业的内容总结专家，能够将复杂信息提炼为简洁摘要。"
+
+  # 工作流资源定义
+  - apiVersion: mastra/v1
+    kind: Workflow
+    metadata:
+      name: data-analysis-workflow
+    spec:
+      name: "数据分析工作流"
+      description: "完整的数据分析工作流，包括数据查询、分析和总结"
+      initialStep: query-data
+      steps:
+        - id: query-data
+          name: "查询数据"
+          agent: data-analyst-agent
+          input:
+            query: "请查询上个月的销售数据"
+          next: analyze-data
+        
+        - id: analyze-data
+          name: "分析数据"
+          agent: data-analyst-agent
+          input:
+            task: "分析以下销售数据，找出关键趋势："
+            data: "${steps.query-data.output}"
+          next: summarize-results
+        
+        - id: summarize-results
+          name: "总结结果"
+          agent: summarizer-agent
+          input:
+            content: "${steps.analyze-data.output}"
+            format: "bullet-points"
+          next: END
+
+  # 网络资源定义
+  - apiVersion: mastra/v1
+    kind: Network
+    metadata:
+      name: expert-collaboration-network
+    spec:
+      instructions: "这是一个专家网络，由多个专业智能体组成，可以协作解决复杂问题。"
+      agents:
+        - name: assistant
+          ref: assistant-agent
+        - name: analyst
+          ref: data-analyst-agent
+        - name: summarizer
+          ref: summarizer-agent
+      router:
+        model:
+          provider: openai
+          name: gpt-4
+        maxSteps: 5
+
+# 资源包含 - 从其他文件或目录加载资源
+includes:
+  - path: additional-resources/
+    optional: true
+  - path: specialized/custom-resources.yaml
+    when: ${env.ENABLE_CUSTOM_TOOLS} 

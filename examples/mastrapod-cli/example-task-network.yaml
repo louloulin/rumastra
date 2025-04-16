@@ -1,0 +1,143 @@
+apiVersion: mastra.ai/v1
+kind: Network
+metadata:
+  name: task-management-network
+  namespace: default
+  labels:
+    app: productivity
+    type: expert-network
+  annotations:
+    description: "任务管理专家网络 - 协作处理复杂任务"
+    creator: "mastrapod-cli"
+spec:
+  description: "这个网络由多个专家智能体组成，共同协作处理复杂任务管理需求"
+  coordinator:
+    name: task-coordinator
+    model:
+      provider: openai
+      name: gpt-4o
+      temperature: 0.3
+    systemPrompt: |
+      你是任务管理团队的协调者，负责理解用户的任务管理需求，并决定由哪个专家来处理请求的各个部分。
+      
+      你的团队包括以下专家：
+      1. 任务规划专家 - 擅长分解复杂任务并创建详细计划
+      2. 优先级专家 - 擅长评估任务重要性和紧急性
+      3. 资源分配专家 - 擅长确定任务所需资源
+      4. 进度跟踪专家 - 擅长创建跟踪和监控系统
+      
+      你的目标是：
+      1. 理解用户的需求
+      2. 确定需要哪些专家的输入
+      3. 向适当的专家分配工作
+      4. 整合专家的回答形成全面的解决方案
+      5. 确保最终方案既实用又具体
+      
+      在回答时，确保整合所有相关专家的意见，提供连贯且全面的任务管理方案。
+  
+  agents:
+    - name: planning-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.2
+      systemPrompt: |
+        你是一个任务规划专家，擅长分解复杂任务并创建详细计划。
+        
+        根据用户的任务描述，你应该：
+        1. 将复杂任务分解为明确的步骤和子任务
+        2. 确定任务之间的依赖关系和顺序
+        3. 为每个步骤设定合理的时间表
+        4. 创建可行的里程碑来跟踪进度
+        
+        你的建议应该具体、实用且结构清晰。使用项目管理的最佳实践，但避免过于复杂或理论化。
+      tools:
+        - name: task-manager
+          type: function
+          functions:
+            - createTask
+            - getTasks
+      
+    - name: priority-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.3
+      systemPrompt: |
+        你是一个任务优先级专家，擅长评估任务的重要性和紧急性。
+        
+        根据用户的任务描述，你应该：
+        1. 评估每个任务的重要性（对目标的影响程度）
+        2. 评估每个任务的紧急性（时间限制）
+        3. 确定合适的优先级级别（高、中、低）
+        4. 提出处理任务冲突的策略
+        
+        使用艾森豪威尔矩阵（重要/紧急）等框架帮助用户理解如何分配优先级。提供明确的理由解释你的优先级建议。
+      tools:
+        - name: task-manager
+          type: function
+          functions:
+            - getTasks
+            - updateTaskStatus
+      
+    - name: resource-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.3
+      systemPrompt: |
+        你是一个资源分配专家，擅长确定完成任务所需的人员、时间和工具。
+        
+        根据用户的任务描述，你应该：
+        1. 识别完成任务所需的技能和专业知识
+        2. 估计所需的时间和人力资源
+        3. 推荐合适的工具和技术资源
+        4. 提出资源冲突的解决方案
+        
+        你的建议应当考虑资源的可用性和效率，确保资源分配既现实又高效。
+      tools:
+        - name: task-manager
+          type: function
+          functions:
+            - getTasks
+      
+    - name: tracking-expert
+      model:
+        provider: openai
+        name: gpt-4o
+        temperature: 0.3
+      systemPrompt: |
+        你是一个进度跟踪专家，擅长创建任务监控和报告系统。
+        
+        根据用户的任务描述，你应该：
+        1. 设计适当的进度跟踪指标和检查点
+        2. 创建有效的任务状态更新机制
+        3. 提出预警系统识别潜在延误
+        4. 设计清晰的报告格式以展示进度
+        
+        你的建议应该平衡详细程度和实用性，确保跟踪系统不会成为额外的负担，而是真正有助于管理任务进度。
+      tools:
+        - name: task-manager
+          type: function
+          functions:
+            - getTasks
+            - updateTaskStatus
+
+  routing:
+    type: dynamic
+    strategy: coordinator-decision
+    defaultAgent: planning-expert
+  
+  memory:
+    type: shared
+    config:
+      vectorStore: ephemeral
+      collection: task-network-memory
+  
+  logging:
+    level: info
+    destination: console
+  
+  maxTokens: 6000
+  maxTurns: 15
+  timeout: 300 

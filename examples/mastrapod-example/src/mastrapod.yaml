@@ -1,0 +1,55 @@
+apiVersion: mastra/v1
+kind: MastraPod
+metadata:
+  name: greeting-pod
+  namespace: default
+spec:
+  providers:
+    default:
+      type: local
+  memory:
+    type: memory
+  resources:
+    - kind: Tool
+      apiVersion: mastra/v1
+      metadata:
+        name: greeter-tool
+        namespace: default
+      spec:
+        type: function
+        function: |
+          function greet(params) {
+            const name = params.name || 'World';
+            return { greeting: `Hello, ${name}!` };
+          }
+    - kind: Agent
+      apiVersion: mastra/v1
+      metadata:
+        name: greeter-agent
+        namespace: default
+      spec:
+        description: "An agent that creates personalized greetings"
+        model:
+          name: mock
+          provider: default
+        tools:
+          - greeter-tool
+    - kind: Workflow
+      apiVersion: mastra/v1
+      metadata:
+        name: greet-workflow
+        namespace: default
+      spec:
+        description: "A workflow that generates a greeting"
+        steps:
+          - id: generate-greeting
+            agent: greeter-agent
+            input:
+              message: "Generate a greeting"
+          - id: format-result
+            agent: greeter-agent
+            input:
+              message: "Format the greeting nicely"
+              name: "{{ workflow.input.name }}"
+            after:
+              - generate-greeting 
