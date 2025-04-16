@@ -11,5 +11,5 @@ export default defineConfig({
   },
   skipNodeModulesBundle: true,
   noExternal: ['js-yaml'],
-  tsconfig: 'src/tsconfig.json',
+  tsconfig: 'tsconfig.json',
 });

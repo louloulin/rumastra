@@ -1,6 +1,6 @@
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { loadMastraFromFile } from '/Users/louloulin/Documents/linchong/agent/mastra/packages/runtimes/dist/index.js';
+import { loadMastraFromFile } from '../../dist/index.js';
 
 // 获取当前目录
 const __filename = fileURLToPath(import.meta.url);
@@ -42,9 +42,6 @@ async function runSimpleAgentExample() {
     } catch (e) {
       console.log('获取默认代理失败:', e.message);
     }
-    
-    // 跳过后续逻辑，先查看可用的agent
-    return;
     
     // 获取代理
     const agent = mastra.getAgent('default.assistant-agent');
